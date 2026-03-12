@@ -40,9 +40,10 @@ const MIN_VOTES = 8; // Mínimo de votos para fechar a sala
 //  sala = {
 //    id, nome, codigo, vagas, criadorId,
 //    membros: Set, embedMessageId,
-//    textChannelId, voiceChannelId,
+//    textChannelId,
 //    votacao: { ativa, sim: Set, nao: Set, messageId },
-//    emAndamento: boolean
+//    emAndamento: boolean,
+//    fechando: boolean
 //  }
 // ─────────────────────────────────────────────
 const salas = new Map(); // salaId → sala
@@ -187,31 +188,42 @@ function buildVotacaoBotoes(salaId) {
 // ─────────────────────────────────────────────
 async function fecharSala(salaId, guild, motivo = 'votação') {
   const sala = salas.get(salaId);
-  if (!sala) return;
+  if (!sala) {
+    console.log(`[WARN] Tentativa de fechar sala ${salaId} que não existe`);
+    return;
+  }
+
+  // Previne fechamento duplicado
+  if (sala.fechando) {
+    console.log(`[WARN] Sala ${salaId} já está sendo fechada`);
+    return;
+  }
+  sala.fechando = true;
+
+  console.log(`[INFO] Fechando sala ${salaId} (${sala.nome}) por ${motivo}`);
 
   try {
-    // Deleta canais privados
+    // Deleta canal privado
     const textCh = guild.channels.cache.get(sala.textChannelId);
-    const voiceCh = guild.channels.cache.get(sala.voiceChannelId);
-    if (textCh) await textCh.delete();
-    if (voiceCh) await voiceCh.delete();
+    if (textCh) await textCh.delete().catch(e => console.error(`Erro ao deletar canal ${textCh.id}:`, e));
 
     // Remove embed do canal de salas
     const salasCh = guild.channels.cache.get(SALAS_CHANNEL_ID);
     if (salasCh) {
       const msg = await salasCh.messages.fetch(sala.embedMessageId).catch(() => null);
-      if (msg) await msg.delete();
+      if (msg) await msg.delete().catch(e => console.error(`Erro ao deletar embed:`, e));
     }
 
     await log(guild, `🗑️ Sala **${sala.nome}** fechada por ${motivo}. Criador: <@${sala.criadorId}> | Participantes: ${sala.membros.size}`);
   } catch (e) {
-    console.error('Erro ao fechar sala:', e);
+    console.error(`[ERROR] Erro ao fechar sala ${salaId}:`, e);
   }
 
   salas.delete(salaId);
+  console.log(`[INFO] Sala ${salaId} removida da memória. Salas restantes: ${salas.size}`);
 
   // Atualiza painel de admin
-  await atualizarPainelAdmin(guild);
+  await atualizarPainelAdmin(guild).catch(e => console.error('[ERROR] Erro ao atualizar painel admin:', e));
 }
 
 // ─────────────────────────────────────────────
@@ -462,15 +474,6 @@ client.on('interactionCreate', async (interaction) => {
       topic: `Sala de custom game | Criador: ${interaction.user.username} | Código: ${codigo}`,
     });
 
-    // Cria canal de voz privado
-    const voiceChannel = await guild.channels.create({
-      name: `🎮 ${nome.substring(0, 30)}`,
-      type: ChannelType.GuildVoice,
-      parent: categoria.id,
-      userLimit: vagasRaw,
-      permissionOverwrites: permBase,
-    });
-
     // Registra a sala
     const sala = {
       id: salaId,
@@ -481,12 +484,13 @@ client.on('interactionCreate', async (interaction) => {
       membros: new Set([criadorId]),
       embedMessageId: null,
       textChannelId: textChannel.id,
-      voiceChannelId: voiceChannel.id,
       criadoEm: Math.floor(Date.now() / 1000),
       votacao: { ativa: false, sim: new Set(), nao: new Set(), messageId: null },
       emAndamento: false, // Inicia esperando jogadores
+      fechando: false, // Previne fechamento duplicado
     };
     salas.set(salaId, sala);
+    console.log(`[INFO] Sala ${salaId} (${nome}) criada. Total de salas: ${salas.size}`);
 
     // Posta embed público no canal #salas
     const salasCh = guild.channels.cache.get(SALAS_CHANNEL_ID);
@@ -514,7 +518,10 @@ client.on('interactionCreate', async (interaction) => {
     const salaId = interaction.customId.replace('entrar_', '');
     const sala = salas.get(salaId);
 
-    if (!sala) return interaction.reply({ content: '❌ Sala não encontrada ou já foi fechada.', ephemeral: true });
+    if (!sala) {
+      console.log(`[DEBUG] Sala ${salaId} não encontrada. Salas ativas:`, Array.from(salas.keys()));
+      return interaction.reply({ content: '❌ Sala não encontrada ou já foi fechada.', ephemeral: true });
+    }
     if (sala.emAndamento) return interaction.reply({ content: '❌ A partida já está em andamento! Não é possível entrar agora.', ephemeral: true });
     if (sala.membros.size >= sala.vagas) return interaction.reply({ content: '❌ Sala cheia!', ephemeral: true });
     if (sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você já está nessa sala!', ephemeral: true });
@@ -524,9 +531,7 @@ client.on('interactionCreate', async (interaction) => {
 
     // Libera acesso ao canal privado
     const textCh = guild.channels.cache.get(sala.textChannelId);
-    const voiceCh = guild.channels.cache.get(sala.voiceChannelId);
     await textCh.permissionOverwrites.create(interaction.user.id, { ViewChannel: true, SendMessages: true });
-    await voiceCh.permissionOverwrites.create(interaction.user.id, { ViewChannel: true, Connect: true });
 
     // Atualiza embed público
     await atualizarEmbedPublico(salaId, guild);
@@ -553,7 +558,11 @@ client.on('interactionCreate', async (interaction) => {
     const salaId = interaction.customId.replace('sair_', '');
     const sala = salas.get(salaId);
 
-    if (!sala) return interaction.reply({ content: '❌ Sala não encontrada.', ephemeral: true });
+    if (!sala || sala.fechando) {
+      console.log(`[DEBUG] Tentativa de sair da sala ${salaId} que não existe ou está fechando`);
+      return interaction.reply({ content: '❌ Sala não encontrada ou já está sendo fechada.', ephemeral: true });
+    }
+    if (sala.emAndamento) return interaction.reply({ content: '❌ A partida já está em andamento! Não é possível sair agora.', ephemeral: true });
     if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você não está nessa sala.', ephemeral: true });
 
     await interaction.reply({ content: '✅ Você saiu da sala.', ephemeral: true });
@@ -566,7 +575,11 @@ client.on('interactionCreate', async (interaction) => {
     const salaId = interaction.customId.replace('sair_privado_', '');
     const sala = salas.get(salaId);
 
-    if (!sala) return interaction.reply({ content: '❌ Sala não encontrada.', ephemeral: true });
+    if (!sala || sala.fechando) {
+      console.log(`[DEBUG] Tentativa de sair (privado) da sala ${salaId} que não existe ou está fechando`);
+      return interaction.reply({ content: '❌ Sala não encontrada ou já está sendo fechada.', ephemeral: true });
+    }
+    if (sala.emAndamento) return interaction.reply({ content: '❌ A partida está em andamento! Não é possível sair agora.', ephemeral: true });
     if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você não está nessa sala.', ephemeral: true });
 
     await interaction.reply({ content: '✅ Você saiu da sala.', ephemeral: true });
@@ -579,7 +592,7 @@ client.on('interactionCreate', async (interaction) => {
     const salaId = interaction.customId.replace('partida_acabou_', '');
     const sala = salas.get(salaId);
 
-    if (!sala) return interaction.reply({ content: '❌ Sala não encontrada.', ephemeral: true });
+    if (!sala || sala.fechando) return interaction.reply({ content: '❌ Sala não encontrada ou já está sendo fechada.', ephemeral: true });
     if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você não está nessa sala.', ephemeral: true });
     if (sala.votacao.ativa) return interaction.reply({ content: '❌ Já tem uma votação em andamento!', ephemeral: true });
 
@@ -603,7 +616,7 @@ client.on('interactionCreate', async (interaction) => {
     const salaId = interaction.customId.replace('votar_sim_', '');
     const sala = salas.get(salaId);
 
-    if (!sala || !sala.votacao.ativa) return interaction.reply({ content: '❌ Votação não encontrada.', ephemeral: true });
+    if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: '❌ Votação não encontrada ou sala já está sendo fechada.', ephemeral: true });
     if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você não está nessa sala.', ephemeral: true });
 
     sala.votacao.sim.add(interaction.user.id);
@@ -635,7 +648,7 @@ client.on('interactionCreate', async (interaction) => {
     const salaId = interaction.customId.replace('votar_nao_', '');
     const sala = salas.get(salaId);
 
-    if (!sala || !sala.votacao.ativa) return interaction.reply({ content: '❌ Votação não encontrada.', ephemeral: true });
+    if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: '❌ Votação não encontrada ou sala já está sendo fechada.', ephemeral: true });
     if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você não está nessa sala.', ephemeral: true });
 
     sala.votacao.nao.add(interaction.user.id);
@@ -814,9 +827,7 @@ async function removerMembro(salaId, userId, guild) {
 
   // Remove acesso ao canal privado
   const textCh = guild.channels.cache.get(sala.textChannelId);
-  const voiceCh = guild.channels.cache.get(sala.voiceChannelId);
   if (textCh) await textCh.permissionOverwrites.delete(userId).catch(() => {});
-  if (voiceCh) await voiceCh.permissionOverwrites.delete(userId).catch(() => {});
 
   // Se o criador saiu, fecha a sala
   if (userId === sala.criadorId) {
