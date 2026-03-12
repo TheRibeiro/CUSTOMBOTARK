@@ -85,487 +85,6 @@ if (DEBUG) {
 }
 
 // ─────────────────────────────────────────────
-//  SISTEMA DE IDIOMAS (i18n)
-// ─────────────────────────────────────────────
-const IDIOMAS_FILE = path.join(__dirname, 'idiomas.json');
-const userLang = new Map(); // userId -> 'pt-BR' | 'es'
-
-const TRADUCOES = {
-  'pt-BR': {
-    // Botões de sala
-    btn_entrar: '✅ Entrar na Sala',
-    btn_sair: '🚪 Sair da Sala',
-    btn_partida_acabou: '🏁 Partida Acabou',
-    btn_sair_privado: '🚪 Sair da Sala',
-    btn_iniciar_partida: '▶️ Iniciar Partida',
-    btn_pausar_partida: '⏸️ Pausar Partida',
-    btn_alterar_codigo: '✏️ Alterar Código',
-    btn_transferir_lider: '👑 Transferir Líder',
-    btn_encerrar_partida: '🏁 Encerrar Partida',
-    btn_fechar_sala: '🗑️ Fechar Sala',
-    btn_criar_sala: '🎮 Criar Sala',
-    btn_notificacoes: '🔔 Notificações',
-    btn_confirmar: '✅ Confirmar',
-    btn_cancelar: '❌ Cancelar',
-
-    // Botões de votação
-    btn_votar_sim: '✅ Sim, acabou',
-    btn_votar_nao: '❌ Não acabou',
-    btn_cancelar_votacao: '⏹️ Cancelar Votação',
-
-    // Botões FAQ
-    btn_faq_criar: '🎮 Criar Sala',
-    btn_faq_votacao: '🗳️ Votação',
-    btn_faq_lider: '👑 Liderança',
-    btn_faq_limite: '⚠️ Limites',
-    btn_faq_codigo: '🔑 Código',
-    btn_faq_notificacoes: '🔔 Notificações',
-    btn_faq_historico: '📊 Histórico',
-
-    // Botões Admin
-    btn_admin_refresh: '🔄 Atualizar',
-    btn_admin_delete_all: '🗑️ Fechar Todas',
-    btn_admin_cleanup: '🧹 Limpar Órfãos',
-    btn_admin_historico: '📋 Histórico',
-
-    // Status da sala
-    status_esperando: '🟢 Esperando jogadores',
-    status_andamento: '🔴 Partida em andamento',
-    status_fechando: '🟡 Fechando...',
-    status_sala_cheia: '🔴 Sala cheia',
-    status_aceitando: '🟢 Aceitando jogadores',
-
-    // Embeds - Títulos
-    embed_sala_titulo: '🎮 {nome}',
-    embed_sala_privado_titulo: '🎮 {nome} — Canal Privado',
-    embed_sala_privado_desc: 'Bem-vindo! O código do lobby e a lista de participantes estão abaixo.\n*Botões de gerenciamento são exclusivos do líder.*',
-    embed_votacao_titulo: '⚔️ Votação — A partida acabou?',
-    embed_confirmacao_titulo: '⚠️ Confirmação Necessária',
-    embed_admin_titulo: '🛡️ Painel de Administração — Salas Ativas',
-    embed_faq_titulo: '📚 Como Funciona — Custom Game',
-    embed_classes_titulo: '📖 Classes — Arkheron',
-    embed_historico_titulo: '📊 Histórico de {nome}',
-    embed_historico_admin_titulo: '📊 Histórico — Últimas 10 Partidas',
-    embed_criar_titulo: '🎮 Custom Game — Salas Ativas',
-
-    // Embeds - Fields
-    field_status: '📊 Status',
-    field_lider: '👑 Líder',
-    field_criada: '⏱️ Criada',
-    field_vagas: '👥 Vagas',
-    field_codigo: '🔑 Código do Lobby',
-    field_participantes: '👥 Participantes',
-    field_membros: '📋 Membros',
-    field_votos_sim: '✅ Sim',
-    field_votos_nao: '❌ Não',
-    field_votos_total: '📊 Total',
-    field_para_fechar: '⚠️ Para fechar',
-    field_total_partidas: '🎮 Total de Partidas',
-    field_vezes_lider: '👑 Vezes como Líder',
-    field_equipamentos: '🎮 Equipamentos',
-
-    // Embeds - Descrições
-    embed_criar_desc: 'Clique no botão abaixo para criar uma sala de custom game.\nAs salas ativas aparecerão aqui em tempo real.\n\n*Apenas membros com cargo 🎮 Jogador ou superior podem criar salas.*',
-    embed_faq_desc: 'Bem-vindo ao sistema de **Custom Game** do Arkheron SA!\nAqui você pode criar e participar de salas de partidas personalizadas.\n\n**📋 Passo a passo:**\n1️⃣ Vá ao canal de salas e clique em **"🎮 Criar Sala"**\n2️⃣ Preencha o nome e o código do lobby\n3️⃣ Jogadores entram clicando em **"✅ Entrar na Sala"**\n4️⃣ O código aparece no canal privado + DM\n5️⃣ Ao terminar, vote para fechar a sala\n\n**🔔 Notificações:**\nAtive as notificações clicando em **"🔔 Notificações"** no canal de salas.\nVocê será mencionado sempre que uma nova sala for criada!\n\n**📊 Histórico:**\nUse o comando `/meuhistorico` para ver suas últimas partidas e estatísticas.\n\n*Clique nos botões abaixo para saber mais sobre cada funcionalidade.*',
-    embed_classes_desc: 'Conheça todas as classes disponíveis no jogo!\nSelecione uma classe no menu abaixo para ver os **equipamentos e habilidades**.\n\n{lista}',
-    embed_admin_nenhuma: '📭 Nenhuma sala ativa.',
-    embed_admin_ativas: '🎮 **{count} sala(s) ativa(s)**',
-
-    // Mensagens de chat
-    msg_sala_fechando: '🏁 **A sala será fechada em {segundos} segundos...** ({motivo})',
-    msg_ultimo_saiu: '👤 Último membro saiu. Sala será fechada...',
-    msg_lider_saiu: '👑 **O líder saiu.** Liderança transferida automaticamente para <@{novo}>!',
-    msg_membro_saiu: '🚪 <@{user}> saiu da sala. ({atual}/{total})',
-    msg_votacao_expirou: '⏰ Votação anterior expirou durante reinicio.',
-    msg_membro_entrou: '✅ <@{user}> entrou na sala! ({atual}/{total})',
-    msg_sala_cheia: '🔴 **Sala cheia!** <@{lider}>, todos os {total} jogadores estão aqui.',
-    msg_codigo_atualizado: '🔑 **Código do lobby atualizado** por <@{user}>!\nNovo código: ```{codigo}```',
-    msg_votacao_iniciada: '@here 🗳️ Votação iniciada! Vocês têm **{minutos} minuto(s)** para votar.',
-    msg_votacao_aprovada: '✅ Votos suficientes! 🏁 **A partida acabou!**',
-    msg_votacao_cancelada: '⏹️ **Votação cancelada pelo líder.**',
-    msg_votacao_expirou_chat: '⏰ **Votação expirou!** Alguém pode iniciar uma nova.',
-    msg_partida_iniciada: '🔴 Partida iniciada!',
-    msg_partida_pausada: '🟢 Partida pausada!',
-    msg_lideranca_transferida: '👑 **Liderança transferida!** <@{de}> → <@{para}>',
-    msg_bot_reiniciando: '⚠️ **Bot reiniciando.** Salas serão restauradas automaticamente.',
-
-    // Respostas efêmeras
-    resp_sem_cargo: '❌ Você precisa do cargo **🎮 Jogador** ou superior!',
-    resp_limite_salas: '❌ Limite de {max} salas atingido!',
-    resp_ja_tem_sala: '❌ Você já tem uma sala ativa!',
-    resp_cooldown: '⏳ Aguarde **{segundos}s** antes de criar outra sala.',
-    resp_categoria_erro: '❌ Categoria não encontrada!',
-    resp_sala_criada: '✅ Sala **{nome}** criada! Acesse: {canal}',
-    resp_sala_nao_encontrada: '❌ Sala não encontrada.',
-    resp_sala_fechando: '❌ Sala não encontrada ou fechando.',
-    resp_apenas_lider: '❌ Apenas o líder.',
-    resp_codigo_alterado: '✅ Código alterado para `{codigo}`',
-    resp_partida_andamento: '❌ Partida em andamento!',
-    resp_sala_cheia: '❌ Sala cheia!',
-    resp_ja_na_sala: '❌ Você já está nessa sala!',
-    resp_em_outra_sala: '❌ Você já está em outra sala! Saia dela primeiro.',
-    resp_voce_entrou: '✅ Você entrou! Acesse: {canal}',
-    resp_nao_na_sala: '❌ Você não está nessa sala.',
-    resp_voce_saiu: '✅ Você saiu da sala.',
-    resp_votacao_andamento: '❌ Já tem votação em andamento!',
-    resp_votacao_iniciada: '✅ Votação iniciada!',
-    resp_votacao_nao_encontrada: '❌ Votação não encontrada.',
-    resp_voto_sim: '✅ Você votou **Sim**. Pode mudar para **Não** a qualquer momento.',
-    resp_voto_sim_trocou: '✅ Voto alterado para **Sim**. Pode mudar a qualquer momento.',
-    resp_voto_nao: '❌ Você votou **Não**. Pode mudar para **Sim** a qualquer momento.',
-    resp_voto_nao_trocou: '❌ Voto alterado para **Não**. Pode mudar a qualquer momento.',
-    resp_votacao_aprovada: '✅ Votação aprovada! Sala será fechada.',
-    resp_nenhuma_votacao: '❌ Nenhuma votação ativa.',
-    resp_apenas_lider_cancelar: '❌ Apenas o líder pode cancelar.',
-    resp_votacao_cancelada: '✅ Votação cancelada.',
-    resp_sem_outros_membros: '❌ Não há outros membros na sala.',
-    resp_selecione_lider: '👑 Selecione o novo líder:',
-    resp_nao_mais_lider: '❌ Você não é mais o líder.',
-    resp_membro_saiu_select: '❌ Esse membro não está mais na sala.',
-    resp_lideranca_transferida: '✅ Liderança transferida para <@{user}>!',
-    resp_sala_sendo_fechada: '❌ Sala já está sendo fechada.',
-    resp_encerrando: '🏁 Encerrando em {segundos}s...',
-    resp_fechando: '🗑️ Fechando em {segundos}s...',
-    resp_acao_cancelada: '❌ Ação cancelada.',
-    resp_sem_permissao: '❌ Sem permissão.',
-    resp_atualizado: '✅ Atualizado!',
-    resp_nenhuma_sala_ativa: '❌ Nenhuma sala ativa.',
-    resp_fechando_salas: '🗑️ Fechando {count} sala(s)...',
-    resp_orfaos_removidos: '🧹 **{count}** órfão(s) removido(s).',
-    resp_sem_historico: '📭 Você ainda não participou de nenhuma partida registrada.',
-    resp_sem_historico_admin: '📊 Nenhum registro no histórico.',
-    resp_notify_desativadas: '🔕 Notificações **desativadas**. Você não será mais notificado quando novas salas forem criadas.',
-    resp_notify_ativadas: '🔔 Notificações **ativadas**! Você será notificado quando novas salas forem criadas.',
-    resp_notify_erro: '❌ Notificações não configuradas.',
-    resp_classe_nao_encontrada: '❌ Classe não encontrada.',
-    resp_erro_interno: '❌ Erro interno. Tente novamente.',
-
-    // Confirmação
-    confirm_encerrar_desc: 'Tem certeza que deseja **encerrar a partida**?\nIsso afetará **{membros}** jogador(es). A sala será fechada após {segundos}s.',
-    confirm_fechar_desc: 'Tem certeza que deseja **fechar a sala**?\nIsso removerá **{membros}** jogador(es) e deletará o canal.',
-
-    // Votação
-    votacao_faltam: 'Faltam **{faltam}** votos em Sim',
-    votacao_suficientes: '✅ Votos suficientes!',
-    votacao_footer: 'Mínimo: {min} votos Sim | Expira em {min_rest}m{sec_rest}s',
-
-    // Modal
-    modal_criar_titulo: '🎮 Criar Sala de Custom Game',
-    modal_criar_nome: 'Nome da sala',
-    modal_criar_nome_placeholder: 'Ex: Casual iniciantes...',
-    modal_criar_codigo: 'Código do lobby',
-    modal_criar_codigo_placeholder: 'Ex: XKZT99',
-    modal_alterar_titulo: '✏️ Alterar Código do Lobby',
-    modal_alterar_codigo: 'Novo código do lobby',
-
-    // DM
-    dm_titulo: '🎮 {nome}',
-    dm_desc: 'Você entrou na sala! Aqui está o código:',
-    dm_canal: '📍 Canal',
-
-    // Select menus
-    select_sala_placeholder: 'Selecione uma sala para deletar',
-    select_lider_placeholder: 'Selecione o novo líder',
-    select_classe_placeholder: '🔍 Selecione uma classe...',
-
-    // FAQ Respostas
-    faq_criar_titulo: '🎮 Como criar uma sala?',
-    faq_criar_desc: '1. Vá ao canal **#salas** e clique em **"🎮 Criar Sala"**\n2. Preencha o **nome da sala** e o **código do lobby**\n3. Um canal privado será criado automaticamente\n4. Compartilhe para os jogadores entrarem!\n\n*Você precisa ter o cargo 🎮 Jogador ou superior.*',
-    faq_votacao_titulo: '🗳️ Como funciona a votação?',
-    faq_votacao_desc: '1. Qualquer membro clica **"🏁 Partida Acabou"**\n2. Uma votação é iniciada (dura **3 minutos**)\n3. São necessários **60% de votos Sim** para fechar\n4. Se expirar sem quorum, alguém pode iniciar outra\n5. O líder pode cancelar a votação ou forçar o fechamento',
-    faq_lider_titulo: '👑 O que acontece se o líder sair?',
-    faq_lider_desc: 'A liderança é **transferida automaticamente** para o membro mais antigo da sala.\n\nO líder também pode transferir manualmente clicando **"👑 Transferir Líder"** no canal privado.\n\nA sala só fecha se o **último membro** sair.',
-    faq_limite_titulo: '⚠️ Quais são os limites?',
-    faq_limite_desc: '• **1 sala por membro** — saia da atual para entrar em outra\n• **1 sala criada por vez** — feche a anterior para criar nova\n• **Cooldown de 3 min** após fechar uma sala para criar outra\n• **Salas expiram** após 6 horas automaticamente',
-    faq_codigo_titulo: '🔑 Como mudar o código do lobby?',
-    faq_codigo_desc: 'O líder pode clicar em **"✏️ Alterar Código"** no canal privado a qualquer momento.\n\nUm pop-up vai pedir o novo código. Todos os membros serão avisados da mudança.',
-    faq_notificacoes_titulo: '🔔 Como funcionam as notificações?',
-    faq_notificacoes_desc: 'No canal de salas, clique no botão **"🔔 Notificações"** para ativar ou desativar.\n\n• **Ativado** — Você recebe uma menção sempre que uma nova sala é criada\n• **Desativado** — Você não é mais notificado\n\nO bot adiciona/remove o cargo automaticamente. Clique novamente para alternar.',
-    faq_historico_titulo: '📊 Como ver meu histórico?',
-    faq_historico_desc: 'Digite **`/meuhistorico`** em qualquer canal do servidor.\n\nO bot mostra:\n• Suas **últimas 10 partidas**\n• Nome da sala, duração e quantidade de jogadores\n• Se você foi líder (👑)\n• **Total de partidas** e **vezes como líder**\n\nA resposta é visível apenas para você.',
-
-    // Histórico
-    historico_footer: 'Arkheron SA • Últimas 10 partidas',
-    historico_footer_admin: 'Total registrado: {total} partida(s)',
-
-    // Outros
-    nenhum_membro: '*Nenhum membro*',
-    e_mais: '*...e mais {count} jogador(es)*',
-    boa_partida: 'Boa partida!',
-    modo_debug: '\n\n⚠️ **MODO DEBUG ATIVO**',
-    footer_arkheron: 'Arkheron SA • Custom Game',
-    footer_classes: 'Arkheron SA • Guia de Classes',
-    footer_classes_menu: 'Arkheron SA • Guia de Classes • Use o menu para ver outra classe',
-    bonus_classe: '🏆 **Bônus de Classe:** {bonus}',
-    equipamentos_desc: '👑 **Coroa** (Slot 1) • 💮 **Amuleto** (Slot 2) • ⚔️ **Arma 1** (Slot 3) • 🗡️ **Arma 2** (Slot 4)',
-    slot_coroa: '👑 Coroa (Slot 1)',
-    slot_amuleto: '💮 Amuleto (Slot 2)',
-    slot_arma1: '⚔️ Arma 1 (Slot 3)',
-    slot_arma2: '🗡️ Arma 2 (Slot 4)',
-    votos: 'votos',
-
-    // Idioma
-    idioma_mudou_es: '🌐 Idioma cambiado a **Español**. Todas las interacciones del bot ahora serán en español.',
-    idioma_mudou_pt: '🌐 Idioma alterado para **Português**. Todas as interações do bot agora serão em português.',
-    btn_mudar_idioma: '🌐 Español',
-  },
-
-  'es': {
-    // Botões de sala
-    btn_entrar: '✅ Entrar a la Sala',
-    btn_sair: '🚪 Salir de la Sala',
-    btn_partida_acabou: '🏁 Partida Terminó',
-    btn_sair_privado: '🚪 Salir de la Sala',
-    btn_iniciar_partida: '▶️ Iniciar Partida',
-    btn_pausar_partida: '⏸️ Pausar Partida',
-    btn_alterar_codigo: '✏️ Cambiar Código',
-    btn_transferir_lider: '👑 Transferir Líder',
-    btn_encerrar_partida: '🏁 Terminar Partida',
-    btn_fechar_sala: '🗑️ Cerrar Sala',
-    btn_criar_sala: '🎮 Crear Sala',
-    btn_notificacoes: '🔔 Notificaciones',
-    btn_confirmar: '✅ Confirmar',
-    btn_cancelar: '❌ Cancelar',
-
-    // Botões de votação
-    btn_votar_sim: '✅ Sí, terminó',
-    btn_votar_nao: '❌ No terminó',
-    btn_cancelar_votacao: '⏹️ Cancelar Votación',
-
-    // Botões FAQ
-    btn_faq_criar: '🎮 Crear Sala',
-    btn_faq_votacao: '🗳️ Votación',
-    btn_faq_lider: '👑 Liderazgo',
-    btn_faq_limite: '⚠️ Límites',
-    btn_faq_codigo: '🔑 Código',
-    btn_faq_notificacoes: '🔔 Notificaciones',
-    btn_faq_historico: '📊 Historial',
-
-    // Botões Admin
-    btn_admin_refresh: '🔄 Actualizar',
-    btn_admin_delete_all: '🗑️ Cerrar Todas',
-    btn_admin_cleanup: '🧹 Limpiar Huérfanos',
-    btn_admin_historico: '📋 Historial',
-
-    // Status da sala
-    status_esperando: '🟢 Esperando jugadores',
-    status_andamento: '🔴 Partida en curso',
-    status_fechando: '🟡 Cerrando...',
-    status_sala_cheia: '🔴 Sala llena',
-    status_aceitando: '🟢 Aceptando jugadores',
-
-    // Embeds - Títulos
-    embed_sala_titulo: '🎮 {nome}',
-    embed_sala_privado_titulo: '🎮 {nome} — Canal Privado',
-    embed_sala_privado_desc: '¡Bienvenido! El código del lobby y la lista de participantes están abajo.\n*Los botones de gestión son exclusivos del líder.*',
-    embed_votacao_titulo: '⚔️ Votación — ¿Terminó la partida?',
-    embed_confirmacao_titulo: '⚠️ Confirmación Necesaria',
-    embed_admin_titulo: '🛡️ Panel de Administración — Salas Activas',
-    embed_faq_titulo: '📚 Cómo Funciona — Custom Game',
-    embed_classes_titulo: '📖 Clases — Arkheron',
-    embed_historico_titulo: '📊 Historial de {nome}',
-    embed_historico_admin_titulo: '📊 Historial — Últimas 10 Partidas',
-    embed_criar_titulo: '🎮 Custom Game — Salas Activas',
-
-    // Embeds - Fields
-    field_status: '📊 Estado',
-    field_lider: '👑 Líder',
-    field_criada: '⏱️ Creada',
-    field_vagas: '👥 Plazas',
-    field_codigo: '🔑 Código del Lobby',
-    field_participantes: '👥 Participantes',
-    field_membros: '📋 Miembros',
-    field_votos_sim: '✅ Sí',
-    field_votos_nao: '❌ No',
-    field_votos_total: '📊 Total',
-    field_para_fechar: '⚠️ Para cerrar',
-    field_total_partidas: '🎮 Total de Partidas',
-    field_vezes_lider: '👑 Veces como Líder',
-    field_equipamentos: '🎮 Equipamientos',
-
-    // Embeds - Descrições
-    embed_criar_desc: 'Haz clic en el botón para crear una sala de custom game.\nLas salas activas aparecerán aquí en tiempo real.\n\n*Solo miembros con rol 🎮 Jugador o superior pueden crear salas.*',
-    embed_faq_desc: '¡Bienvenido al sistema de **Custom Game** de Arkheron SA!\nAquí puedes crear y participar en salas de partidas personalizadas.\n\n**📋 Paso a paso:**\n1️⃣ Ve al canal de salas y haz clic en **"🎮 Crear Sala"**\n2️⃣ Completa el nombre y el código del lobby\n3️⃣ Los jugadores entran haciendo clic en **"✅ Entrar a la Sala"**\n4️⃣ El código aparece en el canal privado + DM\n5️⃣ Al terminar, vota para cerrar la sala\n\n**🔔 Notificaciones:**\nActiva las notificaciones haciendo clic en **"🔔 Notificaciones"** en el canal de salas.\n¡Serás mencionado cada vez que se cree una nueva sala!\n\n**📊 Historial:**\nUsa el comando `/meuhistorico` para ver tus últimas partidas y estadísticas.\n\n*Haz clic en los botones para saber más sobre cada función.*',
-    embed_classes_desc: '¡Conoce todas las clases disponibles en el juego!\nSelecciona una clase en el menú para ver los **equipamientos y habilidades**.\n\n{lista}',
-    embed_admin_nenhuma: '📭 Ninguna sala activa.',
-    embed_admin_ativas: '🎮 **{count} sala(s) activa(s)**',
-
-    // Mensagens de chat
-    msg_sala_fechando: '🏁 **La sala se cerrará en {segundos} segundos...** ({motivo})',
-    msg_ultimo_saiu: '👤 Último miembro salió. La sala se cerrará...',
-    msg_lider_saiu: '👑 **El líder salió.** Liderazgo transferido automáticamente a <@{novo}>!',
-    msg_membro_saiu: '🚪 <@{user}> salió de la sala. ({atual}/{total})',
-    msg_votacao_expirou: '⏰ Votación anterior expiró durante reinicio.',
-    msg_membro_entrou: '✅ <@{user}> entró a la sala! ({atual}/{total})',
-    msg_sala_cheia: '🔴 **¡Sala llena!** <@{lider}>, todos los {total} jugadores están aquí.',
-    msg_codigo_atualizado: '🔑 **Código del lobby actualizado** por <@{user}>!\nNuevo código: ```{codigo}```',
-    msg_votacao_iniciada: '@here 🗳️ ¡Votación iniciada! Tienen **{minutos} minuto(s)** para votar.',
-    msg_votacao_aprovada: '✅ ¡Votos suficientes! 🏁 **¡La partida terminó!**',
-    msg_votacao_cancelada: '⏹️ **Votación cancelada por el líder.**',
-    msg_votacao_expirou_chat: '⏰ **¡Votación expiró!** Alguien puede iniciar una nueva.',
-    msg_partida_iniciada: '🔴 ¡Partida iniciada!',
-    msg_partida_pausada: '🟢 ¡Partida pausada!',
-    msg_lideranca_transferida: '👑 **¡Liderazgo transferido!** <@{de}> → <@{para}>',
-    msg_bot_reiniciando: '⚠️ **Bot reiniciando.** Las salas se restaurarán automáticamente.',
-
-    // Respostas efêmeras
-    resp_sem_cargo: '❌ ¡Necesitas el rol **🎮 Jugador** o superior!',
-    resp_limite_salas: '❌ ¡Límite de {max} salas alcanzado!',
-    resp_ja_tem_sala: '❌ ¡Ya tienes una sala activa!',
-    resp_cooldown: '⏳ Espera **{segundos}s** antes de crear otra sala.',
-    resp_categoria_erro: '❌ ¡Categoría no encontrada!',
-    resp_sala_criada: '✅ ¡Sala **{nome}** creada! Accede: {canal}',
-    resp_sala_nao_encontrada: '❌ Sala no encontrada.',
-    resp_sala_fechando: '❌ Sala no encontrada o cerrando.',
-    resp_apenas_lider: '❌ Solo el líder.',
-    resp_codigo_alterado: '✅ Código cambiado a `{codigo}`',
-    resp_partida_andamento: '❌ ¡Partida en curso!',
-    resp_sala_cheia: '❌ ¡Sala llena!',
-    resp_ja_na_sala: '❌ ¡Ya estás en esta sala!',
-    resp_em_outra_sala: '❌ ¡Ya estás en otra sala! Sal de ella primero.',
-    resp_voce_entrou: '✅ ¡Entraste! Accede: {canal}',
-    resp_nao_na_sala: '❌ No estás en esta sala.',
-    resp_voce_saiu: '✅ Saliste de la sala.',
-    resp_votacao_andamento: '❌ ¡Ya hay una votación en curso!',
-    resp_votacao_iniciada: '✅ ¡Votación iniciada!',
-    resp_votacao_nao_encontrada: '❌ Votación no encontrada.',
-    resp_voto_sim: '✅ Votaste **Sí**. Puedes cambiar a **No** en cualquier momento.',
-    resp_voto_sim_trocou: '✅ Voto cambiado a **Sí**. Puedes cambiarlo en cualquier momento.',
-    resp_voto_nao: '❌ Votaste **No**. Puedes cambiar a **Sí** en cualquier momento.',
-    resp_voto_nao_trocou: '❌ Voto cambiado a **No**. Puedes cambiarlo en cualquier momento.',
-    resp_votacao_aprovada: '✅ ¡Votación aprobada! La sala se cerrará.',
-    resp_nenhuma_votacao: '❌ Ninguna votación activa.',
-    resp_apenas_lider_cancelar: '❌ Solo el líder puede cancelar.',
-    resp_votacao_cancelada: '✅ Votación cancelada.',
-    resp_sem_outros_membros: '❌ No hay otros miembros en la sala.',
-    resp_selecione_lider: '👑 Selecciona el nuevo líder:',
-    resp_nao_mais_lider: '❌ Ya no eres el líder.',
-    resp_membro_saiu_select: '❌ Ese miembro ya no está en la sala.',
-    resp_lideranca_transferida: '✅ ¡Liderazgo transferido a <@{user}>!',
-    resp_sala_sendo_fechada: '❌ La sala ya se está cerrando.',
-    resp_encerrando: '🏁 Cerrando en {segundos}s...',
-    resp_fechando: '🗑️ Cerrando en {segundos}s...',
-    resp_acao_cancelada: '❌ Acción cancelada.',
-    resp_sem_permissao: '❌ Sin permiso.',
-    resp_atualizado: '✅ ¡Actualizado!',
-    resp_nenhuma_sala_ativa: '❌ Ninguna sala activa.',
-    resp_fechando_salas: '🗑️ Cerrando {count} sala(s)...',
-    resp_orfaos_removidos: '🧹 **{count}** huérfano(s) eliminado(s).',
-    resp_sem_historico: '📭 Aún no has participado en ninguna partida registrada.',
-    resp_sem_historico_admin: '📊 Ningún registro en el historial.',
-    resp_notify_desativadas: '🔕 Notificaciones **desactivadas**. Ya no serás notificado cuando se creen nuevas salas.',
-    resp_notify_ativadas: '🔔 ¡Notificaciones **activadas**! Serás notificado cuando se creen nuevas salas.',
-    resp_notify_erro: '❌ Notificaciones no configuradas.',
-    resp_classe_nao_encontrada: '❌ Clase no encontrada.',
-    resp_erro_interno: '❌ Error interno. Inténtalo de nuevo.',
-
-    // Confirmação
-    confirm_encerrar_desc: '¿Estás seguro de que deseas **terminar la partida**?\nEsto afectará a **{membros}** jugador(es). La sala se cerrará después de {segundos}s.',
-    confirm_fechar_desc: '¿Estás seguro de que deseas **cerrar la sala**?\nEsto eliminará a **{membros}** jugador(es) y borrará el canal.',
-
-    // Votação
-    votacao_faltam: 'Faltan **{faltam}** votos en Sí',
-    votacao_suficientes: '✅ ¡Votos suficientes!',
-    votacao_footer: 'Mínimo: {min} votos Sí | Expira en {min_rest}m{sec_rest}s',
-
-    // Modal
-    modal_criar_titulo: '🎮 Crear Sala de Custom Game',
-    modal_criar_nome: 'Nombre de la sala',
-    modal_criar_nome_placeholder: 'Ej: Casual principiantes...',
-    modal_criar_codigo: 'Código del lobby',
-    modal_criar_codigo_placeholder: 'Ej: XKZT99',
-    modal_alterar_titulo: '✏️ Cambiar Código del Lobby',
-    modal_alterar_codigo: 'Nuevo código del lobby',
-
-    // DM
-    dm_titulo: '🎮 {nome}',
-    dm_desc: '¡Entraste a la sala! Aquí está el código:',
-    dm_canal: '📍 Canal',
-
-    // Select menus
-    select_sala_placeholder: 'Selecciona una sala para eliminar',
-    select_lider_placeholder: 'Selecciona el nuevo líder',
-    select_classe_placeholder: '🔍 Selecciona una clase...',
-
-    // FAQ Respostas
-    faq_criar_titulo: '🎮 ¿Cómo crear una sala?',
-    faq_criar_desc: '1. Ve al canal **#salas** y haz clic en **"🎮 Crear Sala"**\n2. Completa el **nombre de la sala** y el **código del lobby**\n3. Se creará un canal privado automáticamente\n4. ¡Comparte para que entren los jugadores!\n\n*Necesitas tener el rol 🎮 Jugador o superior.*',
-    faq_votacao_titulo: '🗳️ ¿Cómo funciona la votación?',
-    faq_votacao_desc: '1. Cualquier miembro hace clic en **"🏁 Partida Terminó"**\n2. Se inicia una votación (dura **3 minutos**)\n3. Se necesitan **60% de votos Sí** para cerrar\n4. Si expira sin quórum, alguien puede iniciar otra\n5. El líder puede cancelar la votación o forzar el cierre',
-    faq_lider_titulo: '👑 ¿Qué pasa si el líder sale?',
-    faq_lider_desc: 'El liderazgo se **transfiere automáticamente** al miembro más antiguo de la sala.\n\nEl líder también puede transferir manualmente haciendo clic en **"👑 Transferir Líder"** en el canal privado.\n\nLa sala solo se cierra si el **último miembro** sale.',
-    faq_limite_titulo: '⚠️ ¿Cuáles son los límites?',
-    faq_limite_desc: '• **1 sala por miembro** — sal de la actual para entrar a otra\n• **1 sala creada a la vez** — cierra la anterior para crear una nueva\n• **Cooldown de 3 min** después de cerrar una sala para crear otra\n• **Las salas expiran** después de 6 horas automáticamente',
-    faq_codigo_titulo: '🔑 ¿Cómo cambiar el código del lobby?',
-    faq_codigo_desc: 'El líder puede hacer clic en **"✏️ Cambiar Código"** en el canal privado en cualquier momento.\n\nUn pop-up pedirá el nuevo código. Todos los miembros serán avisados del cambio.',
-    faq_notificacoes_titulo: '🔔 ¿Cómo funcionan las notificaciones?',
-    faq_notificacoes_desc: 'En el canal de salas, haz clic en el botón **"🔔 Notificaciones"** para activar o desactivar.\n\n• **Activado** — Recibes una mención cada vez que se crea una nueva sala\n• **Desactivado** — Ya no serás notificado\n\nEl bot añade/quita el rol automáticamente. Haz clic de nuevo para alternar.',
-    faq_historico_titulo: '📊 ¿Cómo ver mi historial?',
-    faq_historico_desc: 'Escribe **`/meuhistorico`** en cualquier canal del servidor.\n\nEl bot muestra:\n• Tus **últimas 10 partidas**\n• Nombre de la sala, duración y cantidad de jugadores\n• Si fuiste líder (👑)\n• **Total de partidas** y **veces como líder**\n\nLa respuesta es visible solo para ti.',
-
-    // Histórico
-    historico_footer: 'Arkheron SA • Últimas 10 partidas',
-    historico_footer_admin: 'Total registrado: {total} partida(s)',
-
-    // Outros
-    nenhum_membro: '*Ningún miembro*',
-    e_mais: '*...y {count} jugador(es) más*',
-    boa_partida: '¡Buena partida!',
-    modo_debug: '\n\n⚠️ **MODO DEBUG ACTIVO**',
-    footer_arkheron: 'Arkheron SA • Custom Game',
-    footer_classes: 'Arkheron SA • Guía de Clases',
-    footer_classes_menu: 'Arkheron SA • Guía de Clases • Usa el menú para ver otra clase',
-    bonus_classe: '🏆 **Bono de Clase:** {bonus}',
-    equipamentos_desc: '👑 **Corona** (Slot 1) • 💮 **Amuleto** (Slot 2) • ⚔️ **Arma 1** (Slot 3) • 🗡️ **Arma 2** (Slot 4)',
-    slot_coroa: '👑 Corona (Slot 1)',
-    slot_amuleto: '💮 Amuleto (Slot 2)',
-    slot_arma1: '⚔️ Arma 1 (Slot 3)',
-    slot_arma2: '🗡️ Arma 2 (Slot 4)',
-    votos: 'votos',
-
-    // Idioma
-    idioma_mudou_es: '🌐 Idioma cambiado a **Español**. Todas las interacciones del bot ahora serán en español.',
-    idioma_mudou_pt: '🌐 Idioma alterado para **Português**. Todas as interações do bot agora serão em português.',
-    btn_mudar_idioma: '🌐 Português',
-  },
-};
-
-// Função helper para tradução
-function t(userId, key, vars = {}) {
-  const lang = userLang.get(userId) || 'pt-BR';
-  let text = TRADUCOES[lang]?.[key] || TRADUCOES['pt-BR']?.[key] || key;
-  for (const [k, v] of Object.entries(vars)) {
-    text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
-  }
-  return text;
-}
-
-// Carregar preferências de idioma
-function carregarIdiomas() {
-  try {
-    if (fs.existsSync(IDIOMAS_FILE)) {
-      const data = JSON.parse(fs.readFileSync(IDIOMAS_FILE, 'utf-8'));
-      for (const [userId, lang] of Object.entries(data)) {
-        userLang.set(userId, lang);
-      }
-      logger.info(`Idiomas carregados: ${userLang.size} preferência(s)`);
-    }
-  } catch (e) {
-    logger.warn(`Erro ao carregar idiomas: ${e.message}`);
-  }
-}
-
-// Salvar preferências de idioma
-function salvarIdiomas() {
-  try {
-    const data = Object.fromEntries(userLang);
-    fs.writeFileSync(IDIOMAS_FILE, JSON.stringify(data, null, 2));
-  } catch (e) {
-    logger.error(`Erro ao salvar idiomas: ${e.message}`);
-  }
-}
-
-// ─────────────────────────────────────────────
 //  PERSISTENCIA DE ESTADO
 // ─────────────────────────────────────────────
 const STATE_FILE = path.join(__dirname, 'state.json');
@@ -788,19 +307,19 @@ function buildVotacaoBotoes(salaId) {
   );
 }
 
-function buildConfirmacao(action, salaId, membrosCount, userId = null) {
+function buildConfirmacao(action, salaId, membrosCount) {
   const embed = new EmbedBuilder()
     .setColor(0xef4444)
-    .setTitle(t(userId, 'embed_confirmacao_titulo'))
+    .setTitle('\u26A0\uFE0F Confirma\u00e7\u00e3o Necess\u00e1ria')
     .setDescription(
       action === 'encerrar'
-        ? t(userId, 'confirm_encerrar_desc', { membros: membrosCount, segundos: CLOSE_DELAY_SEC })
-        : t(userId, 'confirm_fechar_desc', { membros: membrosCount })
+        ? `Tem certeza que deseja **encerrar a partida**?\nIsso afetar\u00e1 **${membrosCount}** jogador(es). A sala ser\u00e1 fechada ap\u00f3s ${CLOSE_DELAY_SEC}s.`
+        : `Tem certeza que deseja **fechar a sala**?\nIsso remover\u00e1 **${membrosCount}** jogador(es) e deletar\u00e1 o canal.`
     );
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`confirmar_${action}_${salaId}`).setLabel(t(userId, 'btn_confirmar')).setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId(`cancelar_acao_${salaId}`).setLabel(t(userId, 'btn_cancelar')).setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`confirmar_${action}_${salaId}`).setLabel('\u2705 Confirmar').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`cancelar_acao_${salaId}`).setLabel('\u274C Cancelar').setStyle(ButtonStyle.Secondary),
   );
 
   return { embeds: [embed], components: [row], flags: MessageFlags.Ephemeral };
@@ -1169,11 +688,7 @@ async function enviarFAQ(guild) {
     new ButtonBuilder().setCustomId('faq_historico').setLabel('\uD83D\uDCCA Hist\u00f3rico').setStyle(ButtonStyle.Primary),
   );
 
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('mudar_idioma').setLabel('🌐 Español / Português').setStyle(ButtonStyle.Secondary),
-  );
-
-  await comoFunciona.send({ embeds: [embed], components: [row1, row2, row3] });
+  await comoFunciona.send({ embeds: [embed], components: [row1, row2] });
   logger.info('FAQ interativo enviado');
 }
 
@@ -1617,9 +1132,6 @@ client.once('clientReady', async () => {
   const salasCh = guild.channels.cache.get(SALAS_CHANNEL_ID);
   if (!salasCh) { logger.error('Canal de salas nao encontrado!'); return process.exit(1); }
 
-  // Carregar preferências de idioma
-  carregarIdiomas();
-
   await restaurarSalas(guild);
   await limparOrfaos(guild);
 
@@ -1708,32 +1220,31 @@ client.on('interactionCreate', async (interaction) => {
     //  SLASH COMMAND: /meuhistorico
     // ══════════════════════════════════════════
     if (interaction.isChatInputCommand() && interaction.commandName === 'meuhistorico') {
-      const userId = interaction.user.id;
-      const historico = carregarHistoricoUsuario(userId, 10);
+      const historico = carregarHistoricoUsuario(interaction.user.id, 10);
 
       if (historico.length === 0) {
-        return interaction.reply({ content: t(userId, 'resp_sem_historico'), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: '\uD83D\uDCED Voc\u00ea ainda n\u00e3o participou de nenhuma partida registrada.', flags: MessageFlags.Ephemeral });
       }
 
-      const totalPartidas = carregarHistoricoUsuario(userId, 200).length;
-      const vezesCriador = carregarHistoricoUsuario(userId, 200).filter(h => h.criadorId === userId).length;
+      const totalPartidas = carregarHistoricoUsuario(interaction.user.id, 200).length;
+      const vezesCriador = carregarHistoricoUsuario(interaction.user.id, 200).filter(h => h.criadorId === interaction.user.id).length;
 
       const lista = historico.reverse().map((h, i) => {
         const duracao = h.fechadoEm && h.criadoEm ? Math.round((h.fechadoEm - h.criadoEm) / 60) : '?';
-        const foiLider = h.criadorId === userId ? ' 👑' : '';
-        return `**${i + 1}.** 🎮 **${h.nome}**${foiLider}\n   └ ${h.membros} jogadores • ${duracao} min • <t:${h.fechadoEm}:d>`;
+        const foiLider = h.criadorId === interaction.user.id ? ' \uD83D\uDC51' : '';
+        return `**${i + 1}.** \uD83C\uDFAE **${h.nome}**${foiLider}\n   \u2514 ${h.membros} jogadores \u2022 ${duracao} min \u2022 <t:${h.fechadoEm}:d>`;
       }).join('\n\n');
 
       const embed = new EmbedBuilder()
         .setColor(0x7B2FBE)
-        .setTitle(t(userId, 'embed_historico_titulo', { nome: interaction.user.displayName }))
+        .setTitle(`\uD83D\uDCCA Hist\u00f3rico de ${interaction.user.displayName}`)
         .setDescription(lista.substring(0, 4000))
         .addFields(
-          { name: t(userId, 'field_total_partidas'), value: `${totalPartidas}`, inline: true },
-          { name: t(userId, 'field_vezes_lider'), value: `${vezesCriador}`, inline: true },
+          { name: '\uD83C\uDFAE Total de Partidas', value: `${totalPartidas}`, inline: true },
+          { name: '\uD83D\uDC51 Vezes como L\u00edder', value: `${vezesCriador}`, inline: true },
         )
         .setThumbnail(interaction.user.displayAvatarURL())
-        .setFooter({ text: t(userId, 'historico_footer') });
+        .setFooter({ text: 'Arkheron SA \u2022 \u00DAltimas 10 partidas' });
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
@@ -1743,46 +1254,23 @@ client.on('interactionCreate', async (interaction) => {
     // ══════════════════════════════════════════
     if (interaction.isButton() && FAQ_RESPOSTAS[interaction.customId]) {
       const faq = FAQ_RESPOSTAS[interaction.customId];
-      const userId = interaction.user.id;
-      const embed = new EmbedBuilder()
-        .setColor(0x7B2FBE)
-        .setTitle(t(userId, `${interaction.customId}_titulo`))
-        .setDescription(t(userId, `${interaction.customId}_desc`));
+      const embed = new EmbedBuilder().setColor(0x7B2FBE).setTitle(faq.title).setDescription(faq.desc);
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    // ══════════════════════════════════════════
-    //  MUDAR IDIOMA
-    // ══════════════════════════════════════════
-    if (interaction.isButton() && interaction.customId === 'mudar_idioma') {
-      const userId = interaction.user.id;
-      const currentLang = userLang.get(userId) || 'pt-BR';
-      const newLang = currentLang === 'pt-BR' ? 'es' : 'pt-BR';
-
-      userLang.set(userId, newLang);
-      salvarIdiomas();
-
-      const msg = newLang === 'es'
-        ? t(userId, 'idioma_mudou_es')
-        : t(userId, 'idioma_mudou_pt');
-
-      return interaction.reply({ content: msg, flags: MessageFlags.Ephemeral });
     }
 
     // ══════════════════════════════════════════
     //  TOGGLE NOTIFICACOES
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'toggle_notify') {
-      const userId = interaction.user.id;
-      if (!NOTIFY_ROLE_ID) return interaction.reply({ content: t(userId, 'resp_notify_erro'), flags: MessageFlags.Ephemeral });
+      if (!NOTIFY_ROLE_ID) return interaction.reply({ content: '\u274C Notifica\u00e7\u00f5es n\u00e3o configuradas.', flags: MessageFlags.Ephemeral });
 
       const member = interaction.member;
       if (member.roles.cache.has(NOTIFY_ROLE_ID)) {
         await member.roles.remove(NOTIFY_ROLE_ID).catch(() => {});
-        return interaction.reply({ content: t(userId, 'resp_notify_desativadas'), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: '\uD83D\uDD15 Notifica\u00e7\u00f5es **desativadas**. Voc\u00ea n\u00e3o ser\u00e1 mais notificado quando novas salas forem criadas.', flags: MessageFlags.Ephemeral });
       } else {
         await member.roles.add(NOTIFY_ROLE_ID).catch(() => {});
-        return interaction.reply({ content: t(userId, 'resp_notify_ativadas'), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: '\uD83D\uDD14 Notifica\u00e7\u00f5es **ativadas**! Voc\u00ea ser\u00e1 notificado quando novas salas forem criadas.', flags: MessageFlags.Ephemeral });
       }
     }
 
@@ -1790,10 +1278,9 @@ client.on('interactionCreate', async (interaction) => {
     //  SELECT: CLASSE
     // ══════════════════════════════════════════
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_classe') {
-      const userId = interaction.user.id;
       const classeId = interaction.values[0];
       const classe = CLASSES.find(c => c.id === classeId);
-      if (!classe) return interaction.reply({ content: t(userId, 'resp_classe_nao_encontrada'), flags: MessageFlags.Ephemeral });
+      if (!classe) return interaction.reply({ content: '\u274C Classe n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
 
       const formatSlot = (slot, icone, label) => {
         return `${icone} **${slot.nome}**\n` +
@@ -1845,30 +1332,29 @@ client.on('interactionCreate', async (interaction) => {
     //  CRIAR SALA
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'criar_sala') {
-      const userId = interaction.user.id;
       if (!temCargoMinimo(interaction.member)) {
-        return interaction.reply({ content: t(userId, 'resp_sem_cargo'), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: '\u274C Voc\u00ea precisa do cargo **\uD83C\uDFAE Jogador** ou superior!', flags: MessageFlags.Ephemeral });
       }
       if (salas.size >= MAX_SALAS) {
-        return interaction.reply({ content: t(userId, 'resp_limite_salas', { max: MAX_SALAS }), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: `\u274C Limite de ${MAX_SALAS} salas atingido!`, flags: MessageFlags.Ephemeral });
       }
-      if ([...salas.values()].some(s => s.criadorId === userId && !s.fechando)) {
-        return interaction.reply({ content: t(userId, 'resp_ja_tem_sala'), flags: MessageFlags.Ephemeral });
+      if ([...salas.values()].some(s => s.criadorId === interaction.user.id && !s.fechando)) {
+        return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 tem uma sala ativa!', flags: MessageFlags.Ephemeral });
       }
       // Cooldown
-      const lastClose = cooldowns.get(userId);
+      const lastClose = cooldowns.get(interaction.user.id);
       if (lastClose && Date.now() - lastClose < COOLDOWN_MS) {
         const restante = Math.ceil((COOLDOWN_MS - (Date.now() - lastClose)) / 1000);
-        return interaction.reply({ content: t(userId, 'resp_cooldown', { segundos: restante }), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: `\u23F3 Aguarde **${restante}s** antes de criar outra sala.`, flags: MessageFlags.Ephemeral });
       }
 
-      const modal = new ModalBuilder().setCustomId('modal_criar_sala').setTitle(t(userId, 'modal_criar_titulo'));
+      const modal = new ModalBuilder().setCustomId('modal_criar_sala').setTitle('\uD83C\uDFAE Criar Sala de Custom Game');
       modal.addComponents(
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('sala_nome').setLabel(t(userId, 'modal_criar_nome')).setStyle(TextInputStyle.Short).setPlaceholder(t(userId, 'modal_criar_nome_placeholder')).setMaxLength(50).setRequired(true)
+          new TextInputBuilder().setCustomId('sala_nome').setLabel('Nome da sala').setStyle(TextInputStyle.Short).setPlaceholder('Ex: Casual iniciantes...').setMaxLength(50).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('sala_codigo').setLabel(t(userId, 'modal_criar_codigo')).setStyle(TextInputStyle.Short).setPlaceholder(t(userId, 'modal_criar_codigo_placeholder')).setMaxLength(20).setRequired(true)
+          new TextInputBuilder().setCustomId('sala_codigo').setLabel('C\u00f3digo do lobby').setStyle(TextInputStyle.Short).setPlaceholder('Ex: XKZT99').setMaxLength(20).setRequired(true)
         ),
       );
       return interaction.showModal(modal);
@@ -1885,7 +1371,7 @@ client.on('interactionCreate', async (interaction) => {
       const criadorId = interaction.user.id;
 
       const categoria = guild.channels.cache.get(CUSTOM_CATEGORY_ID);
-      if (!categoria) return interaction.editReply({ content: t(criadorId, 'resp_categoria_erro') });
+      if (!categoria) return interaction.editReply({ content: '\u274C Categoria n\u00e3o encontrada!' });
 
       const textChannel = await guild.channels.create({
         name: `\uD83C\uDFAE\u30FB${nome.toLowerCase().replace(/\s+/g, '-').substring(0, 30)}`,
@@ -1924,7 +1410,7 @@ client.on('interactionCreate', async (interaction) => {
 
       salvarEstado();
       await logDiscord(guild, `\uD83C\uDFAE Sala **${nome}** criada por <@${criadorId}> | ID: ${salaId}`);
-      await interaction.editReply({ content: t(criadorId, 'resp_sala_criada', { nome, canal: textChannel }) });
+      await interaction.editReply({ content: `\u2705 Sala **${nome}** criada! Acesse: ${textChannel}` });
       await atualizarPainelAdmin(guild).catch(() => {});
       logger.info(`Sala ${salaId} (${nome}) criada. Total: ${salas.size}`);
       return;
@@ -1936,9 +1422,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_alterar_codigo_')) {
       const salaId = interaction.customId.replace('modal_alterar_codigo_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (sala.criadorId !== userId) return interaction.reply({ content: t(userId, 'resp_apenas_lider'), flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
 
       const novoCodigo = interaction.fields.getTextInputValue('novo_codigo');
       sala.codigo = novoCodigo;
@@ -1947,9 +1432,9 @@ client.on('interactionCreate', async (interaction) => {
       await atualizarEmbedPrivado(salaId, guild);
 
       const textCh = guild.channels.cache.get(sala.textChannelId);
-      if (textCh) await textCh.send(t(sala.criadorId, 'msg_codigo_atualizado', { user: userId, codigo: novoCodigo })).catch(() => {});
+      if (textCh) await textCh.send(`\uD83D\uDD11 **C\u00f3digo do lobby atualizado** por <@${interaction.user.id}>!\nNovo c\u00f3digo: \`\`\`${novoCodigo}\`\`\``).catch(() => {});
 
-      await interaction.reply({ content: t(userId, 'resp_codigo_alterado', { codigo: novoCodigo }), flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: `\u2705 C\u00f3digo alterado para \`${novoCodigo}\``, flags: MessageFlags.Ephemeral });
       logger.info(`Codigo alterado na sala ${salaId}: ${novoCodigo}`);
       return;
     }
@@ -1960,52 +1445,51 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('entrar_')) {
       const salaId = interaction.customId.replace('entrar_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
 
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_fechando'), flags: MessageFlags.Ephemeral });
-      if (sala.emAndamento) return interaction.reply({ content: t(userId, 'resp_partida_andamento'), flags: MessageFlags.Ephemeral });
-      if (sala.membros.size >= sala.vagas) return interaction.reply({ content: t(userId, 'resp_sala_cheia'), flags: MessageFlags.Ephemeral });
-      if (sala.membros.has(userId)) return interaction.reply({ content: t(userId, 'resp_ja_na_sala'), flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada ou fechando.', flags: MessageFlags.Ephemeral });
+      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', flags: MessageFlags.Ephemeral });
+      if (sala.membros.size >= sala.vagas) return interaction.reply({ content: '\u274C Sala cheia!', flags: MessageFlags.Ephemeral });
+      if (sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 est\u00e1 nessa sala!', flags: MessageFlags.Ephemeral });
 
       // Limite: 1 sala por membro
-      const jaEstaEmOutra = [...salas.values()].some(s => s.membros.has(userId) && s.id !== salaId && !s.fechando);
+      const jaEstaEmOutra = [...salas.values()].some(s => s.membros.has(interaction.user.id) && s.id !== salaId && !s.fechando);
       if (jaEstaEmOutra) {
-        return interaction.reply({ content: t(userId, 'resp_em_outra_sala'), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 est\u00e1 em outra sala! Saia dela primeiro.', flags: MessageFlags.Ephemeral });
       }
 
-      sala.membros.add(userId);
+      sala.membros.add(interaction.user.id);
 
       const textCh = guild.channels.cache.get(sala.textChannelId);
-      if (textCh) await textCh.permissionOverwrites.create(userId, { ViewChannel: true, SendMessages: true });
+      if (textCh) await textCh.permissionOverwrites.create(interaction.user.id, { ViewChannel: true, SendMessages: true });
 
       await atualizarEmbedPublico(salaId, guild);
       await atualizarEmbedPrivado(salaId, guild);
 
-      if (textCh) await textCh.send(t(sala.criadorId, 'msg_membro_entrou', { user: userId, atual: sala.membros.size, total: sala.vagas }));
+      if (textCh) await textCh.send(`\u2705 <@${interaction.user.id}> entrou na sala! (${sala.membros.size}/${sala.vagas})`);
 
       // Notificacao: sala cheia
       if (sala.membros.size >= sala.vagas && textCh) {
-        await textCh.send(t(sala.criadorId, 'msg_sala_cheia', { lider: sala.criadorId, total: sala.vagas })).catch(() => {});
+        await textCh.send(`\uD83D\uDD34 **Sala cheia!** <@${sala.criadorId}>, todos os ${sala.vagas} jogadores est\u00e3o aqui.`).catch(() => {});
       }
 
       // DM com codigo do lobby
       try {
         const dmEmbed = new EmbedBuilder()
           .setColor(0x7B2FBE)
-          .setTitle(t(userId, 'dm_titulo', { nome: sala.nome }))
-          .setDescription(t(userId, 'dm_desc'))
+          .setTitle(`\uD83C\uDFAE ${sala.nome}`)
+          .setDescription('Voc\u00ea entrou na sala! Aqui est\u00e1 o c\u00f3digo:')
           .addFields(
-            { name: t(userId, 'field_codigo'), value: `\`\`\`${sala.codigo}\`\`\``, inline: false },
-            { name: t(userId, 'dm_canal'), value: `<#${sala.textChannelId}>`, inline: true },
+            { name: '\uD83D\uDD11 C\u00f3digo do Lobby', value: `\`\`\`${sala.codigo}\`\`\``, inline: false },
+            { name: '\uD83D\uDCCD Canal', value: `<#${sala.textChannelId}>`, inline: true },
           )
-          .setFooter({ text: t(userId, 'footer_arkheron') });
+          .setFooter({ text: 'Arkheron SA \u2022 Custom Game' });
         await interaction.user.send({ embeds: [dmEmbed] });
       } catch {
         // DMs desativadas — segue sem avisar
       }
 
       salvarEstado();
-      await interaction.reply({ content: t(userId, 'resp_voce_entrou', { canal: textCh }), flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: `\u2705 Voc\u00ea entrou! Acesse: ${textCh}`, flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -2015,12 +1499,11 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('sair_') && !interaction.customId.startsWith('sair_privado_')) {
       const salaId = interaction.customId.replace('sair_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (sala.emAndamento) return interaction.reply({ content: t(userId, 'resp_partida_andamento'), flags: MessageFlags.Ephemeral });
-      if (!sala.membros.has(userId)) return interaction.reply({ content: t(userId, 'resp_nao_na_sala'), flags: MessageFlags.Ephemeral });
-      await interaction.reply({ content: t(userId, 'resp_voce_saiu'), flags: MessageFlags.Ephemeral });
-      await removerMembro(salaId, userId, guild);
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: '\u2705 Voc\u00ea saiu da sala.', flags: MessageFlags.Ephemeral });
+      await removerMembro(salaId, interaction.user.id, guild);
       return;
     }
 
@@ -2030,12 +1513,11 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('sair_privado_')) {
       const salaId = interaction.customId.replace('sair_privado_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (sala.emAndamento) return interaction.reply({ content: t(userId, 'resp_partida_andamento'), flags: MessageFlags.Ephemeral });
-      if (!sala.membros.has(userId)) return interaction.reply({ content: t(userId, 'resp_nao_na_sala'), flags: MessageFlags.Ephemeral });
-      await interaction.reply({ content: t(userId, 'resp_voce_saiu'), flags: MessageFlags.Ephemeral });
-      await removerMembro(salaId, userId, guild);
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: '\u2705 Voc\u00ea saiu da sala.', flags: MessageFlags.Ephemeral });
+      await removerMembro(salaId, interaction.user.id, guild);
       return;
     }
 
@@ -2045,23 +1527,22 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('partida_acabou_')) {
       const salaId = interaction.customId.replace('partida_acabou_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (!sala.membros.has(userId)) return interaction.reply({ content: t(userId, 'resp_nao_na_sala'), flags: MessageFlags.Ephemeral });
-      if (sala.votacao.ativa) return interaction.reply({ content: t(userId, 'resp_votacao_andamento'), flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
+      if (sala.votacao.ativa) return interaction.reply({ content: '\u274C J\u00e1 tem vota\u00e7\u00e3o em andamento!', flags: MessageFlags.Ephemeral });
 
       sala.votacao = { ativa: true, sim: new Set(), nao: new Set(), messageId: null, iniciadaEm: Date.now() };
 
       const textCh = guild.channels.cache.get(sala.textChannelId);
       const votMsg = await textCh.send({
-        content: t(sala.criadorId, 'msg_votacao_iniciada', { minutos: Math.floor(VOTE_TIMEOUT_MS / 60000) }),
+        content: `@here \uD83D\uDDF3\uFE0F Vota\u00e7\u00e3o iniciada! Voc\u00eas t\u00eam **${Math.floor(VOTE_TIMEOUT_MS / 60000)} minuto(s)** para votar.`,
         embeds: [buildVotacaoEmbed(sala)],
         components: [buildVotacaoBotoes(salaId)],
       });
       sala.votacao.messageId = votMsg.id;
       iniciarVotacaoTimeout(salaId, guild);
       salvarEstado();
-      await interaction.reply({ content: t(userId, 'resp_votacao_iniciada'), flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o iniciada!', flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -2071,13 +1552,12 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('votar_sim_')) {
       const salaId = interaction.customId.replace('votar_sim_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: t(userId, 'resp_votacao_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (!sala.membros.has(userId)) return interaction.reply({ content: t(userId, 'resp_nao_na_sala'), flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Vota\u00e7\u00e3o n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
 
-      const trocou = sala.votacao.nao.has(userId);
-      sala.votacao.sim.add(userId);
-      sala.votacao.nao.delete(userId);
+      const trocou = sala.votacao.nao.has(interaction.user.id);
+      sala.votacao.sim.add(interaction.user.id);
+      sala.votacao.nao.delete(interaction.user.id);
 
       const textCh = guild.channels.cache.get(sala.textChannelId);
       if (textCh && sala.votacao.messageId) {
@@ -2091,15 +1571,17 @@ client.on('interactionCreate', async (interaction) => {
         sala.votacao.ativa = false;
         if (textCh && sala.votacao.messageId) {
           const votMsg = await textCh.messages.fetch(sala.votacao.messageId).catch(() => null);
-          if (votMsg) await votMsg.edit({ content: t(sala.criadorId, 'msg_votacao_aprovada'), embeds: [], components: [] });
+          if (votMsg) await votMsg.edit({ content: '\u2705 Votos suficientes! \uD83C\uDFC1 **A partida acabou!**', embeds: [], components: [] });
         }
-        await interaction.reply({ content: t(userId, 'resp_votacao_aprovada'), flags: MessageFlags.Ephemeral });
-        await agendarFechamento(salaId, guild, 'votação (maioria)');
+        await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o aprovada! Sala ser\u00e1 fechada.', flags: MessageFlags.Ephemeral });
+        await agendarFechamento(salaId, guild, 'vota\u00e7\u00e3o (maioria)');
         return;
       }
 
       salvarEstado();
-      const feedback = trocou ? t(userId, 'resp_voto_sim_trocou') : t(userId, 'resp_voto_sim');
+      const feedback = trocou
+        ? '\u2705 Voto alterado para **Sim**. Pode mudar a qualquer momento.'
+        : '\u2705 Voc\u00ea votou **Sim**. Pode mudar para **N\u00e3o** a qualquer momento.';
       await interaction.reply({ content: feedback, flags: MessageFlags.Ephemeral });
       return;
     }
@@ -2110,13 +1592,12 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('votar_nao_')) {
       const salaId = interaction.customId.replace('votar_nao_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: t(userId, 'resp_votacao_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (!sala.membros.has(userId)) return interaction.reply({ content: t(userId, 'resp_nao_na_sala'), flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Vota\u00e7\u00e3o n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
 
-      const trocou = sala.votacao.sim.has(userId);
-      sala.votacao.nao.add(userId);
-      sala.votacao.sim.delete(userId);
+      const trocou = sala.votacao.sim.has(interaction.user.id);
+      sala.votacao.nao.add(interaction.user.id);
+      sala.votacao.sim.delete(interaction.user.id);
 
       const textCh = guild.channels.cache.get(sala.textChannelId);
       if (textCh && sala.votacao.messageId) {
@@ -2125,7 +1606,9 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       salvarEstado();
-      const feedback = trocou ? t(userId, 'resp_voto_nao_trocou') : t(userId, 'resp_voto_nao');
+      const feedback = trocou
+        ? '\u274C Voto alterado para **N\u00e3o**. Pode mudar a qualquer momento.'
+        : '\u274C Voc\u00ea votou **N\u00e3o**. Pode mudar para **Sim** a qualquer momento.';
       await interaction.reply({ content: feedback, flags: MessageFlags.Ephemeral });
       return;
     }
@@ -2136,9 +1619,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('votar_cancelar_')) {
       const salaId = interaction.customId.replace('votar_cancelar_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || !sala.votacao.ativa) return interaction.reply({ content: t(userId, 'resp_nenhuma_votacao'), flags: MessageFlags.Ephemeral });
-      if (sala.criadorId !== userId) return interaction.reply({ content: t(userId, 'resp_apenas_lider_cancelar'), flags: MessageFlags.Ephemeral });
+      if (!sala || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Nenhuma vota\u00e7\u00e3o ativa.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder pode cancelar.', flags: MessageFlags.Ephemeral });
 
       const oldMsgId = sala.votacao.messageId;
       cancelarVotacaoTimeout(salaId);
@@ -2147,11 +1629,11 @@ client.on('interactionCreate', async (interaction) => {
       const textCh = guild.channels.cache.get(sala.textChannelId);
       if (textCh && oldMsgId) {
         const votMsg = await textCh.messages.fetch(oldMsgId).catch(() => null);
-        if (votMsg) await votMsg.edit({ content: t(sala.criadorId, 'msg_votacao_cancelada'), embeds: [], components: [] }).catch(() => {});
+        if (votMsg) await votMsg.edit({ content: '\u23F9\uFE0F **Vota\u00e7\u00e3o cancelada pelo l\u00edder.**', embeds: [], components: [] }).catch(() => {});
       }
 
       salvarEstado();
-      await interaction.reply({ content: t(userId, 'resp_votacao_cancelada'), flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o cancelada.', flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -2161,21 +1643,20 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('toggle_andamento_')) {
       const salaId = interaction.customId.replace('toggle_andamento_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (sala.criadorId !== userId) return interaction.reply({ content: t(userId, 'resp_apenas_lider'), flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
 
       sala.emAndamento = !sala.emAndamento;
-      const status = sala.emAndamento ? t(userId, 'msg_partida_iniciada') : t(userId, 'msg_partida_pausada');
+      const status = sala.emAndamento ? '\uD83D\uDD34 Partida iniciada!' : '\uD83D\uDFE2 Partida pausada!';
 
       await atualizarEmbedPublico(salaId, guild);
       await atualizarEmbedPrivado(salaId, guild);
 
       const textCh = guild.channels.cache.get(sala.textChannelId);
-      if (textCh) await textCh.send(`${status} Por <@${userId}>`).catch(() => {});
+      if (textCh) await textCh.send(`${status} Por <@${interaction.user.id}>`).catch(() => {});
 
       salvarEstado();
-      await interaction.reply({ content: `✅ ${status}`, flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: `\u2705 ${status}`, flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -2185,16 +1666,15 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('alterar_codigo_')) {
       const salaId = interaction.customId.replace('alterar_codigo_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (sala.criadorId !== userId) return interaction.reply({ content: t(userId, 'resp_apenas_lider'), flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
 
       const modal = new ModalBuilder()
         .setCustomId(`modal_alterar_codigo_${salaId}`)
-        .setTitle(t(userId, 'modal_alterar_titulo'));
+        .setTitle('\u270F\uFE0F Alterar C\u00f3digo do Lobby');
       modal.addComponents(
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('novo_codigo').setLabel(t(userId, 'modal_alterar_codigo')).setStyle(TextInputStyle.Short).setPlaceholder(sala.codigo).setMaxLength(20).setRequired(true)
+          new TextInputBuilder().setCustomId('novo_codigo').setLabel('Novo c\u00f3digo do lobby').setStyle(TextInputStyle.Short).setPlaceholder(sala.codigo).setMaxLength(20).setRequired(true)
         ),
       );
       return interaction.showModal(modal);
@@ -2206,12 +1686,11 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('transferir_lider_')) {
       const salaId = interaction.customId.replace('transferir_lider_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (sala.criadorId !== userId) return interaction.reply({ content: t(userId, 'resp_apenas_lider'), flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
 
       const membros = [...sala.membros].filter(id => id !== sala.criadorId);
-      if (membros.length === 0) return interaction.reply({ content: t(userId, 'resp_sem_outros_membros'), flags: MessageFlags.Ephemeral });
+      if (membros.length === 0) return interaction.reply({ content: '\u274C N\u00e3o h\u00e1 outros membros na sala.', flags: MessageFlags.Ephemeral });
 
       const options = membros.slice(0, 25).map(id => {
         const member = guild.members.cache.get(id);
@@ -2221,11 +1700,11 @@ client.on('interactionCreate', async (interaction) => {
       const row = new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId(`select_novo_lider_${salaId}`)
-          .setPlaceholder(t(userId, 'select_lider_placeholder'))
+          .setPlaceholder('Selecione o novo l\u00edder')
           .addOptions(options)
       );
 
-      return interaction.reply({ content: t(userId, 'resp_selecione_lider'), components: [row], flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: '\uD83D\uDC51 Selecione o novo l\u00edder:', components: [row], flags: MessageFlags.Ephemeral });
     }
 
     // ══════════════════════════════════════════
@@ -2234,12 +1713,11 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_novo_lider_')) {
       const salaId = interaction.customId.replace('select_novo_lider_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.update({ content: t(userId, 'resp_sala_nao_encontrada'), components: [] });
-      if (sala.criadorId !== userId) return interaction.update({ content: t(userId, 'resp_nao_mais_lider'), components: [] });
+      if (!sala || sala.fechando) return interaction.update({ content: '\u274C Sala n\u00e3o encontrada.', components: [] });
+      if (sala.criadorId !== interaction.user.id) return interaction.update({ content: '\u274C Voc\u00ea n\u00e3o \u00e9 mais o l\u00edder.', components: [] });
 
       const novoLiderId = interaction.values[0];
-      if (!sala.membros.has(novoLiderId)) return interaction.update({ content: t(userId, 'resp_membro_saiu_select'), components: [] });
+      if (!sala.membros.has(novoLiderId)) return interaction.update({ content: '\u274C Esse membro n\u00e3o est\u00e1 mais na sala.', components: [] });
 
       sala.criadorId = novoLiderId;
       salvarEstado();
@@ -2248,10 +1726,10 @@ client.on('interactionCreate', async (interaction) => {
       await atualizarEmbedPrivado(salaId, guild);
 
       const textCh = guild.channels.cache.get(sala.textChannelId);
-      if (textCh) await textCh.send(t(novoLiderId, 'msg_lideranca_transferida', { de: userId, para: novoLiderId })).catch(() => {});
+      if (textCh) await textCh.send(`\uD83D\uDC51 **Lideran\u00e7a transferida!** <@${interaction.user.id}> \u2192 <@${novoLiderId}>`).catch(() => {});
 
-      await interaction.update({ content: t(userId, 'resp_lideranca_transferida', { user: novoLiderId }), components: [] });
-      logger.info(`Lideranca transferida na sala ${salaId}: ${userId} -> ${novoLiderId}`);
+      await interaction.update({ content: `\u2705 Lideran\u00e7a transferida para <@${novoLiderId}>!`, components: [] });
+      logger.info(`Lideranca transferida na sala ${salaId}: ${interaction.user.id} -> ${novoLiderId}`);
       return;
     }
 
@@ -2261,10 +1739,9 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('encerrar_partida_')) {
       const salaId = interaction.customId.replace('encerrar_partida_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (sala.criadorId !== userId) return interaction.reply({ content: t(userId, 'resp_apenas_lider'), flags: MessageFlags.Ephemeral });
-      return interaction.reply(buildConfirmacao('encerrar', salaId, sala.membros.size, userId));
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
+      return interaction.reply(buildConfirmacao('encerrar', salaId, sala.membros.size));
     }
 
     // ══════════════════════════════════════════
@@ -2273,10 +1750,9 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('forcar_fechar_')) {
       const salaId = interaction.customId.replace('forcar_fechar_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      if (sala.criadorId !== userId) return interaction.reply({ content: t(userId, 'resp_apenas_lider'), flags: MessageFlags.Ephemeral });
-      return interaction.reply(buildConfirmacao('fechar', salaId, sala.membros.size, userId));
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
+      return interaction.reply(buildConfirmacao('fechar', salaId, sala.membros.size));
     }
 
     // ══════════════════════════════════════════
@@ -2285,10 +1761,9 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('confirmar_encerrar_')) {
       const salaId = interaction.customId.replace('confirmar_encerrar_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.update({ content: t(userId, 'resp_sala_sendo_fechada'), embeds: [], components: [] });
-      await interaction.update({ content: t(userId, 'resp_encerrando', { segundos: CLOSE_DELAY_SEC }), embeds: [], components: [] });
-      await agendarFechamento(salaId, guild, `encerrada pelo líder (<@${userId}>)`);
+      if (!sala || sala.fechando) return interaction.update({ content: '\u274C Sala j\u00e1 est\u00e1 sendo fechada.', embeds: [], components: [] });
+      await interaction.update({ content: `\uD83C\uDFC1 Encerrando em ${CLOSE_DELAY_SEC}s...`, embeds: [], components: [] });
+      await agendarFechamento(salaId, guild, `encerrada pelo l\u00edder (<@${interaction.user.id}>)`);
       return;
     }
 
@@ -2298,10 +1773,9 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('confirmar_fechar_')) {
       const salaId = interaction.customId.replace('confirmar_fechar_', '');
       const sala = salas.get(salaId);
-      const userId = interaction.user.id;
-      if (!sala || sala.fechando) return interaction.update({ content: t(userId, 'resp_sala_sendo_fechada'), embeds: [], components: [] });
-      await interaction.update({ content: t(userId, 'resp_fechando', { segundos: CLOSE_DELAY_SEC }), embeds: [], components: [] });
-      await agendarFechamento(salaId, guild, `criador (<@${userId}>)`);
+      if (!sala || sala.fechando) return interaction.update({ content: '\u274C Sala j\u00e1 est\u00e1 sendo fechada.', embeds: [], components: [] });
+      await interaction.update({ content: `\uD83D\uDDD1\uFE0F Fechando em ${CLOSE_DELAY_SEC}s...`, embeds: [], components: [] });
+      await agendarFechamento(salaId, guild, `criador (<@${interaction.user.id}>)`);
       return;
     }
 
@@ -2309,30 +1783,27 @@ client.on('interactionCreate', async (interaction) => {
     //  CANCELAR ACAO
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId.startsWith('cancelar_acao_')) {
-      const userId = interaction.user.id;
-      return interaction.update({ content: t(userId, 'resp_acao_cancelada'), embeds: [], components: [] });
+      return interaction.update({ content: '\u274C A\u00e7\u00e3o cancelada.', embeds: [], components: [] });
     }
 
     // ══════════════════════════════════════════
     //  ADMIN: REFRESH
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'admin_refresh') {
-      const userId = interaction.user.id;
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: t(userId, 'resp_sem_permissao'), flags: MessageFlags.Ephemeral });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
       await atualizarPainelAdmin(guild);
-      return interaction.reply({ content: t(userId, 'resp_atualizado'), flags: MessageFlags.Ephemeral });
+      return interaction.reply({ content: '\u2705 Atualizado!', flags: MessageFlags.Ephemeral });
     }
 
     // ══════════════════════════════════════════
     //  ADMIN: FECHAR TODAS
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'admin_delete_all') {
-      const userId = interaction.user.id;
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: t(userId, 'resp_sem_permissao'), flags: MessageFlags.Ephemeral });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
       const ids = Array.from(salas.keys()).filter(id => !salas.get(id).fechando);
-      if (ids.length === 0) return interaction.reply({ content: t(userId, 'resp_nenhuma_sala_ativa'), flags: MessageFlags.Ephemeral });
-      await interaction.reply({ content: t(userId, 'resp_fechando_salas', { count: ids.length }), flags: MessageFlags.Ephemeral });
-      for (const id of ids) await agendarFechamento(id, guild, `admin (<@${userId}>)`);
+      if (ids.length === 0) return interaction.reply({ content: '\u274C Nenhuma sala ativa.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: `\uD83D\uDDD1\uFE0F Fechando ${ids.length} sala(s)...`, flags: MessageFlags.Ephemeral });
+      for (const id of ids) await agendarFechamento(id, guild, `admin (<@${interaction.user.id}>)`);
       return;
     }
 
@@ -2340,35 +1811,33 @@ client.on('interactionCreate', async (interaction) => {
     //  ADMIN: LIMPAR ORFAOS
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'admin_cleanup_orfaos') {
-      const userId = interaction.user.id;
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: t(userId, 'resp_sem_permissao'), flags: MessageFlags.Ephemeral });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const n = await limparOrfaos(guild);
-      return interaction.editReply({ content: t(userId, 'resp_orfaos_removidos', { count: n }) });
+      return interaction.editReply({ content: `\uD83E\uDDF9 **${n}** \u00f3rf\u00e3o(s) removido(s).` });
     }
 
     // ══════════════════════════════════════════
     //  ADMIN: HISTORICO
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'admin_historico') {
-      const userId = interaction.user.id;
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: t(userId, 'resp_sem_permissao'), flags: MessageFlags.Ephemeral });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
 
       const historico = carregarHistorico(10);
       if (historico.length === 0) {
-        return interaction.reply({ content: t(userId, 'resp_sem_historico_admin'), flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: '\uD83D\uDCCA Nenhum registro no hist\u00f3rico.', flags: MessageFlags.Ephemeral });
       }
 
       const lista = historico.reverse().map((h, i) => {
         const duracao = h.fechadoEm && h.criadoEm ? Math.round((h.fechadoEm - h.criadoEm) / 60) : '?';
-        return `**${i + 1}.** 🎮 **${h.nome}** — ${h.membros} jogadores — ${duracao} min\n   └ Líder: <@${h.criadorId}> | Motivo: ${h.motivo}`;
+        return `**${i + 1}.** \uD83C\uDFAE **${h.nome}** — ${h.membros} jogadores — ${duracao} min\n   \u2514 L\u00edder: <@${h.criadorId}> | Motivo: ${h.motivo}`;
       }).join('\n\n');
 
       const embed = new EmbedBuilder()
         .setColor(0x7B2FBE)
-        .setTitle(t(userId, 'embed_historico_admin_titulo'))
+        .setTitle('\uD83D\uDCCA Hist\u00f3rico — \u00DAltimas 10 Partidas')
         .setDescription(lista.substring(0, 4000))
-        .setFooter({ text: t(userId, 'historico_footer_admin', { total: carregarHistorico(200).length }) });
+        .setFooter({ text: `Total registrado: ${carregarHistorico(200).length} partida(s)` });
 
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
@@ -2377,12 +1846,11 @@ client.on('interactionCreate', async (interaction) => {
     //  ADMIN: SELECT SALA
     // ══════════════════════════════════════════
     if (interaction.isStringSelectMenu() && interaction.customId === 'admin_select_sala') {
-      const userId = interaction.user.id;
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: t(userId, 'resp_sem_permissao'), flags: MessageFlags.Ephemeral });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
       const salaId = interaction.values[0];
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: t(userId, 'resp_sala_nao_encontrada'), flags: MessageFlags.Ephemeral });
-      await interaction.reply({ content: `🗑️ Fechando **${sala.nome}**...`, flags: MessageFlags.Ephemeral });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: `\uD83D\uDDD1\uFE0F Fechando **${sala.nome}**...`, flags: MessageFlags.Ephemeral });
       await agendarFechamento(salaId, guild, `admin (<@${interaction.user.id}>)`);
       return;
     }
@@ -2390,12 +1858,10 @@ client.on('interactionCreate', async (interaction) => {
   } catch (error) {
     logger.error(`Erro interacao ${interaction?.customId || 'desconhecida'}: ${error.stack || error.message}`);
     try {
-      const userId = interaction?.user?.id;
-      const errMsg = t(userId, 'resp_erro_interno');
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: errMsg, flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: '\u274C Erro interno. Tente novamente.', flags: MessageFlags.Ephemeral });
       } else {
-        await interaction.followUp({ content: errMsg, flags: MessageFlags.Ephemeral });
+        await interaction.followUp({ content: '\u274C Erro interno. Tente novamente.', flags: MessageFlags.Ephemeral });
       }
     } catch {}
   }
