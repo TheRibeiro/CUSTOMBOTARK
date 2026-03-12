@@ -233,7 +233,7 @@ function buildPrivadoEmbed(sala) {
     .addFields(
       { name: '\uD83D\uDD11 C\u00f3digo do Lobby', value: `\`\`\`${sala.codigo}\`\`\``, inline: false },
       { name: '\uD83D\uDC65 Participantes', value: barraProgresso(sala.membros.size, sala.vagas), inline: false },
-      { name: '\uD83D\uDCCB Membros', value: listaMembros(sala, guild), inline: false },
+      { name: '\uD83D\uDCCB Membros', value: listaMembros(sala), inline: false },
       { name: '\uD83D\uDC51 L\u00edder', value: `<@${sala.criadorId}>`, inline: true },
     )
     .setFooter({ text: 'Boa partida!' });
