@@ -68,6 +68,7 @@ const {
   DISCORD_TOKEN, GUILD_ID, SALAS_CHANNEL_ID,
   CUSTOM_CATEGORY_ID, LOG_CHANNEL_ID, MIN_ROLE_ID,
   ADMIN_SALAS_CHANNEL_ID, NOTIFY_ROLE_ID,
+  CLASSES_CATEGORY_ID,
 } = process.env;
 
 const DEBUG = process.env.DEBUG_MODE === 'true';
@@ -723,6 +724,404 @@ const FAQ_RESPOSTAS = {
 };
 
 // ─────────────────────────────────────────────
+//  CLASSES — Dados e Setup
+// ─────────────────────────────────────────────
+const CLASSES = [
+  {
+    id: 'dahla', nome: 'Dahla', emoji: '\u2728', cor: 0xE91E8C,
+    desc: 'Assassina \u00e1gil focada em invisibilidade e ataques r\u00e1pidos com l\u00e2minas.',
+    bonus: 'Bolsos profundos: pilha m\u00e1xima de aumento dos consum\u00edveis',
+    coroa: {
+      nome: 'Vanish Crown', habilidade: 'VANISH',
+      tags: 'Faseado \u2022 Aumento de Movement \u2022 Invis\u00edvel \u2022 Invulner\u00e1vel',
+      stats: 'Recarga: 12s \u2022 Dura\u00e7\u00e3o: 1.5s',
+      desc: 'Transforma-se num movimento r\u00e1pido invulner\u00e1vel/invis\u00edvel, saindo atr\u00e1s dos inimigos.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Ao deixar Vanish, invulner\u00e1vel a danos durante 1s',
+    },
+    amuleto: {
+      nome: 'Petal Dance Amulet', habilidade: 'DAN\u00C7A DAS P\u00C9TALAS',
+      tags: 'Curar \u2022 Idade \u2022 Capacidade canalizada',
+      stats: 'Cura: 7.5 por 0.5s \u2022 Recarga: 14s \u2022 Dura\u00e7\u00e3o: 5s',
+      desc: 'Cria v\u00f3rtice de p\u00e9talas que cura aliados ao longo do tempo.',
+      upgrades: 'II Recarga reduzida para 14s\nIII Quantidade de cura aumentada para 79',
+    },
+    arma1: {
+      nome: 'Dancing Blade', habilidade: 'VARIA\u00C7\u00C3O DE CORTE',
+      tags: 'Piercing \u2022 Stun \u2022 Repor ao matar',
+      stats: 'Dano CaC: 15/15/16/16 \u2022 Recarga: 12s',
+      desc: 'Espinho torcido que atinge o alvo com ataques de perfura\u00e7\u00e3o e atordoamento.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Elimina\u00e7\u00f5es repor a recarga',
+    },
+    arma2: {
+      nome: 'Facas de Arremesso', habilidade: 'LAN\u00C7AMENTO DE PROJETA',
+      tags: 'Disparo cont\u00ednuo',
+      stats: 'Dano a Dist\u00e2ncia: 9/9 \u2022 Muni\u00e7\u00f5es: 12',
+      desc: 'Barreira da l\u00e2mina \u2014 cerque-os com facas. Each blade danos no impacto.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Projeta arremesso 2 facas cada rota\u00e7\u00e3o',
+    },
+  },
+  {
+    id: 'edani', nome: 'Edani', emoji: '\uD83D\uDD25', cor: 0xFF4444,
+    desc: 'Ber\u00e7erker corpo a corpo com dano explosivo e lifesteal agressivo.',
+    bonus: 'Feroz: dano corpo a corpo aumento de 20%',
+    coroa: {
+      nome: 'Coroa de Explos\u00e3o', habilidade: 'CREATIVE OUTBURST',
+      tags: 'Destrui\u00e7\u00e3o \u2022 Idade',
+      stats: 'Danos: 15-30 \u2022 Recarga: 12s \u2022 Dura\u00e7\u00e3o escape: 1.5s',
+      desc: 'Ashnik que afasta os inimigos. Dano com base no n\u00famero de inimigos pr\u00f3ximos.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Raio de explos\u00e3o aumentado',
+    },
+    amuleto: {
+      nome: 'Amuleto do Sofrimento', habilidade: 'MAIS, MELHOR',
+      tags: 'Aura \u2022 Aumento de dano',
+      stats: 'Recarga: 12s \u2022 Dura\u00e7\u00e3o: 6s \u2022 Gama Aura: 5m',
+      desc: 'Aumenta o dano com base no n\u00famero de inimigos pr\u00f3ximos. Aumento de dano: 20%.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Amplifica\u00e7\u00e3o de dano para 20% por inimigo pr\u00f3ximo',
+    },
+    arma1: {
+      nome: 'Gancho de Lunging', habilidade: 'THRASH DE PELE FINA',
+      tags: 'Stun \u2022 Invulner\u00e1vel',
+      stats: 'Dano CaC: 12/12/14.4/14.4/1 \u2022 Recarga: 12s',
+      desc: 'Palav\u00f5es surpreendentes \u2014 jogue um gancho em um inimigo, puxando voc\u00ea para ele.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Carga bem-sucedida: invulner\u00e1vel a danos durante 1s',
+    },
+    arma2: {
+      nome: 'Puxando Garras', habilidade: 'SCRATCH AND SHRED',
+      tags: 'Stun \u2022 Jane access',
+      stats: 'Dano CaC: 9.6/6/6/19.2/19.2/21.6/1 \u2022 Recarga: 12s',
+      desc: 'Atra\u00e7\u00e3o irresist\u00edvel \u2014 lan\u00e7ar ambas as garras em dire\u00e7\u00e3o a um alvo e puxar para voc\u00ea.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Elimina\u00e7\u00f5es repor a recarga',
+    },
+  },
+  {
+    id: 'grimwold', nome: 'Grimwold', emoji: '\uD83D\uDEE1\uFE0F', cor: 0x4488FF,
+    desc: 'Tanque com regenera\u00e7\u00e3o, portais e ataques de torre est\u00e1tica.',
+    bonus: 'Galvanizado: Fortaleza e Sa\u00fade \u2014 Regenerar se n\u00e3o tiver danos sofridos nos \u00faltimos 3s',
+    coroa: {
+      nome: 'Coroa Oscilante', habilidade: 'REGENERA\u00C7\u00C3O OSCILANTE',
+      tags: 'Teleporta\u00e7\u00e3o \u2022 Curar',
+      stats: 'Recarga: 15s \u2022 Cura: 65 \u2022 Dura\u00e7\u00e3o: 10s',
+      desc: 'Cria um portal. Lan\u00e7ando a\u00e7\u00e3o retorna para o portal e cura voc\u00ea.',
+      upgrades: 'II Recarga reduzida para 15s\nIII Cura aumentada para 65',
+    },
+    amuleto: {
+      nome: 'Amuleto Voltaico', habilidade: 'BARREIRA VOLTAICA',
+      tags: 'Contra \u2022 Bloco',
+      stats: 'Recarga: 10s \u2022 Dura\u00e7\u00e3o: 8s',
+      desc: 'Uma barreira que bloqueia proj\u00e9teis inimigos e companheiros de equipa atrav\u00e9s dela.',
+      upgrades: 'II Recarga reduzida para 10s\nIII Dura\u00e7\u00e3o aumentada para 8s',
+    },
+    arma1: {
+      nome: 'Dispositivo Estranho', habilidade: 'CHOQUE / TORRE EST\u00C1TICA',
+      tags: 'Ataque canalizado \u2022 Alvo suave \u2022 Summon \u2022 Explos\u00e3o',
+      stats: 'Dano a Dist\u00e2ncia: 4-11 por 0.3s \u2022 Torre: Danos 10 / Sa\u00fade 100hp \u2022 Recarga: 12s',
+      desc: 'Segure para danificar um \u00fanico alvo pr\u00f3ximo. Torre est\u00e1tica que visa o mais pr\u00f3ximo.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Detona\u00e7\u00e3o de Torre est\u00e1tica (50 de dano) quando destru\u00edda',
+    },
+    arma2: {
+      nome: 'An\u00e9is Carregados', habilidade: 'TIRO \u00daNICO / REA\u00C7\u00C3O EM CADEIA',
+      tags: 'Desloca\u00e7\u00e3o \u2022 Bounce',
+      stats: 'Dano a Dist\u00e2ncia: 25-38 \u2022 Cadeia: Dano 15 \u2022 Recarga: 10s',
+      desc: 'Um proj\u00e9til que clarifica e empurra inimigos de volta. Rea\u00e7\u00e3o em Cadeia salta entre alvos.',
+      upgrades: 'II Recarga reduzida para 10s\nIII Rea\u00e7\u00e3o em Cadeia vai saltar at\u00e9 8 alvos',
+    },
+  },
+  {
+    id: 'irenna', nome: 'Irenna', emoji: '\u2744\uFE0F', cor: 0x88CCFF,
+    desc: 'Guerreira de gelo com armadura pesada, aura de lentid\u00e3o e ataques de cone gelado.',
+    bonus: 'Sangue frio: aumento de 25% danos causados por atordoados ou retardados',
+    coroa: {
+      nome: 'Frost Armor Crown', habilidade: 'FROST ARMOR',
+      tags: 'Armor \u2022 Capacidade canalizada \u2022 Nega Piercing \u2022 Nega Estagnamento',
+      stats: 'Recarga: 20s \u2022 Durabilidade: 100 CV \u2022 Dura\u00e7\u00e3o: 12s',
+      desc: 'Camada de sa\u00fade adicional que nega danos por perfura\u00e7\u00e3o e estagnamento.',
+      upgrades: 'II Recarga reduzida para 20s\nIII Canais Frost Armor 25% mais r\u00e1pidos',
+    },
+    amuleto: {
+      nome: 'Amuleto do Vento Norte', habilidade: 'NORTHERN WIND',
+      tags: 'Aura',
+      stats: 'Recarga: 14s \u2022 Gama Aura: 4m \u2022 Dura\u00e7\u00e3o: 4s',
+      desc: 'Uma aura que retarda o movimento dos inimigos. Diminui\u00e7\u00e3o de velocidade: 30%.',
+      upgrades: 'II Recarga reduzida para 14s\nIII Aumento do tamanho da Aura',
+    },
+    arma1: {
+      nome: 'Ma\u00e7a Quebra-Gelo', habilidade: 'FURTOS INSENS\u00cdVEIS / QUEBRA-GELO',
+      tags: 'Lento \u2022 Ataque cone \u2022 Raiz',
+      stats: 'Dano CaC: 26/28 \u2022 Recarga: 12s \u2022 Dura\u00e7\u00e3o lenta: 1.5s',
+      desc: 'Um cone de gelo que retarda e danifica inimigos. Enemies no centro ficam enraizados por 2s.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Enemies no centro do cone est\u00e3o enraizados por 2s',
+    },
+    arma2: {
+      nome: 'Espada Zelador', habilidade: 'PESTANAS PRAGM\u00C1TICAS / APERTO KURIANO',
+      tags: 'Stun \u2022 Piercing',
+      stats: 'Dano CaC: 20/20/26 \u2022 Recarga: 12s',
+      desc: 'Empurre para a frente e perfure um alvo com stun e piercing.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Atordoamento aumentado para 7s',
+    },
+  },
+  {
+    id: 'karriv', nome: 'Karriv', emoji: '\uD83D\uDD25', cor: 0xFF8800,
+    desc: 'Mago de fogo com totem protetor, proj\u00e9teis flamejantes e ondas de chama.',
+    bonus: 'Persistente: Cooldowns de habilidade s\u00e3o 20% mais r\u00e1pidos',
+    coroa: {
+      nome: 'Forgefire Crown', habilidade: 'FORJAR FOGO',
+      tags: 'Idade \u2022 Mitiga\u00e7\u00e3o de danos \u2022 Summon',
+      stats: 'Recarga: 12.8s \u2022 Dura\u00e7\u00e3o: 7s \u2022 Sa\u00fade: 100hp',
+      desc: 'Coloque um totem protetor que cura e mitiga danos aos seus criadores de equipa.',
+      upgrades: 'II Recarga reduzida para 16s\nIII Dura\u00e7\u00e3o aumentada para 7s',
+    },
+    amuleto: {
+      nome: 'Amuleto Flamepath', habilidade: 'FLAMEPATH',
+      tags: 'Danos ao longo do tempo \u2022 AoE',
+      stats: 'Danos: 12 + 6 Pontos \u2022 Recarga: 10.4s \u2022 Dist\u00e2ncia: 7m',
+      desc: 'Inscreva um caminho de chamas ardente no ch\u00e3o.',
+      upgrades: 'II Recarga reduzida para 13s\nIII Dura\u00e7\u00e3o aumentada para 10s',
+    },
+    arma1: {
+      nome: 'Lanterna Flamejante', habilidade: 'GOLPEIE A BIGORNA / EMBER TOSS',
+      tags: 'Danos ao longo do tempo \u2022 Ataque a\u00e9reo \u2022 AoE',
+      stats: 'Dano CaC: 18/18/18/18+5 AoE +8 \u2022 Dano Dist: 25 + 6 \u2022 Recarga: 8s',
+      desc: 'Proj\u00e9til lan\u00e7ado que explode em carvonhas ardentes. Ember Toss permanece no ch\u00e3o 3s.',
+      upgrades: 'II Recarga reduzida para 10s\nIII Ember Toss permanece no ch\u00e3o durante 3s',
+    },
+    arma2: {
+      nome: 'P\u00e1 Abrasadora', habilidade: 'BALAN\u00C7O DA P\u00C1 / EXPLOS\u00C3O ABRASADORA',
+      tags: 'Danos ao longo do tempo \u2022 Passar \u2022 Explos\u00e3o',
+      stats: 'Dano CaC: 24/24/28+15 AoE +8 \u2022 Dano Dist: 25/10 \u2022 Recarga: 9.6s',
+      desc: 'Uma onda de flame que passa por alvos e os incendeia.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Explos\u00e3o abrasadora quando a onda passa por um alvo',
+    },
+  },
+  {
+    id: 'leodin', nome: 'Leodin', emoji: '\u2694\uFE0F', cor: 0xFFD700,
+    desc: 'Cavaleiro divino com escudo radiante, lifesteal e reflex\u00e3o de danos.',
+    bonus: 'Divine: 20% De Redu\u00e7\u00e3o De Dano',
+    coroa: {
+      nome: 'Coroa Radiante', habilidade: 'RADIANT SHIELD',
+      tags: 'Invulner\u00e1vel \u2022 Lifesteal \u2022 AoE \u2022 Brilhagem',
+      stats: 'Danos: 15-30 \u2022 Lifesteal: Self 15.0-30.0 \u2022 Recarga: 15s',
+      desc: 'Insere um estado invulner\u00e1vel. Sair cria um lifesteal/explos\u00e3o. Janela da ativa\u00e7\u00e3o: 3s.',
+      upgrades: 'II Recarga reduzida para 15s\nIII Dano causado no sa\u00edda do Escudo agora cura para 100%',
+    },
+    amuleto: {
+      nome: 'Amuleto do Santu\u00e1rio', habilidade: 'SANTU\u00C1RIO',
+      tags: 'AoE \u2022 Steadfast',
+      stats: 'Recarga: 12s \u2022 \u00c1rea de escala de efeito: 8m \u2022 Dura\u00e7\u00e3o: 6s',
+      desc: '\u00c1rea Santu\u00e1rio. While dentro dele, voc\u00ea e companheiros de equipa est\u00e3o firmes.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Raio Aumentado',
+    },
+    arma1: {
+      nome: 'Eclipse Hammer', habilidade: 'ALEGRE BALAN\u00C7O / BALAN\u00C7O JUSTO',
+      tags: 'Stun \u2022 Knockback \u2022 Brilhagem',
+      stats: 'Dano CaC: 20/20/30/30 \u2022 Balan\u00e7o Justo: Dano 38 \u2022 Recarga: 10s',
+      desc: 'Martelo de duas m\u00e3os que derruba os inimigos para tr\u00e1s.',
+      upgrades: 'II Recarga reduzida para 10s\nIII \u00daltima greve devastadora com \u00e1rea de efeito aumentada',
+    },
+    arma2: {
+      nome: 'Lan\u00e7a Glint', habilidade: 'IMPULSO DIVINO / REFLECT',
+      tags: 'Ataque canalizado \u2022 Bloco \u2022 Danos refletidos',
+      stats: 'Dano CaC: 23-45 \u2022 Reflect Danos: 100% \u2022 Recarga: 12s',
+      desc: 'Uma faca lan\u00e7ada que perfura inimigos. Reflect projeta e bloqueia dano corpo a corpo.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Alcance do Impulso Divino aumentado quando carregado',
+    },
+  },
+  {
+    id: 'penepole', nome: 'Penepole', emoji: '\uD83D\uDD2E', cor: 0x66BBFF,
+    desc: 'Maga de longo alcance com proj\u00e9teis arcanos, cegueira e escudo invulner\u00e1vel.',
+    bonus: 'Jovem: ganhar dois extra endurance pips',
+    coroa: {
+      nome: 'Sparkle Crown', habilidade: 'SPARKLE',
+      tags: 'Idade \u2022 Cegos \u2022 Ataque a\u00e9reo',
+      stats: 'Danos: 15 \u2022 Recarga: 12s \u2022 Dura\u00e7\u00e3o cegos: 7s',
+      desc: 'Um proj\u00e9til que explode e forma uma nebulosidade. Enemies dentro da bolha ficam cegos.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Dura\u00e7\u00e3o dos cegos aumentada para 7s',
+    },
+    amuleto: {
+      nome: 'Amuleto de Corre\u00e7\u00e3o', habilidade: 'TRANQUE A PORTA',
+      tags: 'AoE \u2022 Tether',
+      stats: 'Dano a Dist\u00e2ncia: 15 \u2022 Recarga: 12s \u2022 Dura\u00e7\u00e3o: 4s',
+      desc: 'Uma onda oscilante que prende os inimigos perto. A corda pode ser quebrada por esfor\u00e7o.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Aumento da durabilidade da corda',
+    },
+    arma1: {
+      nome: 'Espelho', habilidade: 'FRAGMENTOS VOADORES / ILUMINE O C\u00c9U',
+      tags: 'Disparo cont\u00ednuo \u2022 Redu\u00e7\u00e3o da recarga',
+      stats: 'Dano a Dist\u00e2ncia: 5 \u2022 Ilumine: Dano 15 \u2022 Recarga: 10s',
+      desc: 'Ataque a dist\u00e2ncia cont\u00ednuo. Acertar inimigos reduz capacidade de recarga. Detonar fragmentos.',
+      upgrades: 'II Recarga reduzida para 10s\nIII Cacos Adicionais',
+    },
+    arma2: {
+      nome: 'Guarda-Sol de Porcelana', habilidade: 'EXPLOS\u00c3O ACERTADA / SOB O CLIMA',
+      tags: 'Passar \u2022 Invulner\u00e1vel',
+      stats: 'Dano a Dist\u00e2ncia: 5 \u2022 Muni\u00e7\u00f5es: 3 \u2022 Alcance: 3.5m \u2022 Recarga: 12s',
+      desc: 'Sob o clima \u2014 uma esqu\u00edva descendal com um invulner\u00e1vel instant\u00e2neo. Rodopia o guarda-sol.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Contagem de muni\u00e7\u00e3o aumentada para 3',
+    },
+  },
+  {
+    id: 'ravah', nome: 'Ravah', emoji: '\uD83C\uDF19', cor: 0x8844AA,
+    desc: 'Ca\u00e7adora furtiva com invisibilidade, besta de longo alcance e l\u00e2mina voadora.',
+    bonus: 'Distante: dano a dist\u00e2ncia aumentado em 20%',
+    coroa: {
+      nome: 'Shadowsmoke Coroa', habilidade: 'SHADOWSMOKE',
+      tags: 'Invis\u00edvel \u2022 Idade',
+      stats: 'Danos: 2.5 por 0.5s \u2022 Recarga: 16s \u2022 \u00c1rea de efeito: 8m',
+      desc: 'Nuvem de fuma\u00e7a que torna voc\u00ea e companheiros invis\u00edveis. Atacar revela-te.',
+      upgrades: 'II Recarga reduzida para 16s\nIII Inimigos recebem 2.5 de dano por segundo em p\u00e9',
+    },
+    amuleto: {
+      nome: 'Amuleto de Persegui\u00e7\u00e3o', habilidade: 'PERSEGUI\u00C7\u00C3O',
+      tags: 'Aumento de danos \u2022 Stealth\u00e9d',
+      stats: 'Recarga: 12s \u2022 Dura\u00e7\u00e3o: 2s \u2022 Aumento de Dano: 30%',
+      desc: 'Tornar-se furtivo e o movimento ganha velocidade. Repor no kill. Aumento de Velocidade: 75%.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Repor atrav\u00e9s de abates',
+    },
+    arma1: {
+      nome: 'Talonflight Besta', habilidade: 'PIERCING TIRO / UNLOAD',
+      tags: 'Ataque carregado \u2022 Piercing \u2022 Knockback \u2022 Stun',
+      stats: 'Dano a Dist\u00e2ncia: 24-48 \u2022 Unload: Dano 30 \u2022 Recarga: 10s',
+      desc: 'T\u00eernio que atravessa a armadura. Unload: explos\u00e3o de danos que empurra voc\u00ea e os inimigos.',
+      upgrades: 'II Recarga reduzida para 10s\nIII Carga da besta agora passa por alvos',
+    },
+    arma2: {
+      nome: 'L\u00e2mina de Anel', habilidade: 'LAN\u00C7AMENTO / TORNAR VOO',
+      tags: 'Tiro \u00fanico \u2022 Elmsed \u2022 Teleporte \u2022 Repor ao matar',
+      stats: 'Dano a Dist\u00e2ncia: 21.6/1 \u2022 Tornar Voo: Dano 36 \u2022 Recarga: 10s',
+      desc: 'Uma arma de longo alcance que pode incorporar nos inimigos. Teleporte para a l\u00e2mina.',
+      upgrades: 'II Recarga reduzida para 10s\nIII Elimina\u00e7\u00f5es repor a recarga',
+    },
+  },
+  {
+    id: 'rynshi', nome: 'Rynshi', emoji: '\u26A1', cor: 0xAA44FF,
+    desc: 'Guerreiro furioso com grito cegante, v\u00f3rtex de stun e socos velozes.',
+    bonus: 'Implaciv\u00e9l: 40% De Dano + Ced\u00eancia: Redu\u00e7\u00e3o com baixa sa\u00fade (75HP)',
+    coroa: {
+      nome: 'Coroa da Raiva Cegante', habilidade: 'RUGIDO OFUSCANTE',
+      tags: 'Cegos \u2022 Dados',
+      stats: 'Danos: 20 \u2022 Recarga: 12s \u2022 Dura\u00e7\u00e3o cego: 6s',
+      desc: 'Um grito de guerra que cega os inimigos pr\u00f3ximos.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Dura\u00e7\u00e3o de cegos aumentada para 6s',
+    },
+    amuleto: {
+      nome: 'Vortex Amulet', habilidade: 'VORTEX',
+      tags: 'AoE \u2022 Stun \u2022 Ataque a\u00e9reo',
+      stats: 'Danos: 15 \u2022 Recarga: 12s \u2022 \u00c1rea de efeito: 3.5m',
+      desc: 'Um v\u00f3rtice que puxa inimigos ao seu centro, atordoando-os no impacto.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Dura\u00e7\u00e3o do atordoamento aumentada para 1s',
+    },
+    arma1: {
+      nome: 'Wrath Cleaver', habilidade: 'CLEAVE / SAVAGE LEAP',
+      tags: 'Ataque a\u00e9reo \u2022 Brilhagem \u2022 Stun \u2022 AoE',
+      stats: 'Dano CaC: 20/28/25/30 \u2022 Savage Leap: Dano 45 \u2022 Recarga: 10s',
+      desc: 'Salte para cima e esmaga. Stun na aterragem. \u00c1rea de efeito: 1.5m.',
+      upgrades: 'II Recarga reduzida para 10s\nIII Hit now atordoa jogadores por 1s',
+    },
+    arma2: {
+      nome: 'Bracadeiras de F\u00faria', habilidade: 'FURY SOCOS / ARREMESSO S\u00c1DICO',
+      tags: 'Piercing \u2022 Agarrar \u2022 Lega\u00e7\u00e3o \u2022 Vulner\u00e1vel',
+      stats: 'Dano CaC: 18/20/20/25/28 \u2022 Arremesso: Dano 10/35 \u2022 Recarga: 12s',
+      desc: 'Pegue um inimigo pr\u00f3ximo e jogue-o para longe. Janela de ativa\u00e7\u00e3o: 3s.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Lan\u00e7ar um inimigo indicar\u00e1 25% mais danos por 5s',
+    },
+  },
+  {
+    id: 'tsubo', nome: 'Tsubo', emoji: '\uD83D\uDCAA', cor: 0xCC2222,
+    desc: 'Bruto impar\u00e1vel com summon, lifesteal alto, estagnamento e controle de \u00e1rea.',
+    bonus: 'Ending: causar 70% a mais de dano em baixa sa\u00fade (75HP)',
+    coroa: {
+      nome: 'Coroa do Antepassado', habilidade: 'YAHTOWA',
+      tags: 'Summon \u2022 Danos ao longo do tempo',
+      stats: 'Danos: 5 + 10 Pontos \u2022 Recarga: 15s \u2022 Dura\u00e7\u00e3o: 8s \u2022 Sa\u00fade: 100hp',
+      desc: 'Convoque um espirito para lutar ao seu lado. Ele perseguir\u00e1 alvos com ping.',
+      upgrades: 'II Recarga reduzida para 15s\nIII Sa\u00fade do c\u00e3o aumentada para 100',
+    },
+    amuleto: {
+      nome: 'Executar Amuleto Livre', habilidade: 'CORRER LIVRE',
+      tags: 'Faseado \u2022 Lifesteal \u2022 Passar \u2022 Steadfast',
+      stats: 'Danos: 20 \u2022 Recarga: 12s \u2022 Dura\u00e7\u00e3o: 0.45s \u2022 Lifesteal: 100%',
+      desc: 'Avan\u00e7ar, danificando os inimigos que voc\u00ea passar.',
+      upgrades: 'II Recarga reduzida para 12s\nIII Executar ganhos livres Lifesteal',
+    },
+    arma1: {
+      nome: 'L\u00e2minas do Estripador', habilidade: 'SLASH AND SMASH / TORNA-LOS PRESAS',
+      tags: 'Ataque cone \u2022 Weaken \u2022 Estagnamento',
+      stats: 'Dano CaC: 10/10/10/1/10/30 \u2022 Recarga: 10s',
+      desc: 'Ataque em forma de leque que faz inimigos ficarem lentos. Porcentagem de estagnamento: 30%.',
+      upgrades: 'II Recarga reduzida para 16s\nIII Dura\u00e7\u00e3o aumentada para 3s',
+    },
+    arma2: {
+      nome: 'Boom-Chakas', habilidade: 'BOOM-CRACK / BIND',
+      tags: 'Ataque carregado \u2022 Explos\u00e3o \u2022 Bind \u2022 Stun',
+      stats: 'Dano a Dist\u00e2ncia: 13/9/9/9 \u2022 Bind: Dano 20 \u2022 Recarga: 12s \u2022 Dura\u00e7\u00e3o: 3s',
+      desc: 'Ataque que pode ser carregado para explodir ao acertar. Bind limita a capacidade de correr.',
+      upgrades: 'II Cooldown reduzido para 12s\nIII Dura\u00e7\u00e3o aumentada para 3s',
+    },
+  },
+];
+
+async function enviarPainelClasses(guild) {
+  if (!CLASSES_CATEGORY_ID) return;
+
+  // Procura canal existente na categoria
+  let classesCh = guild.channels.cache.find(
+    c => c.parentId === CLASSES_CATEGORY_ID && c.name.includes('classes')
+  );
+
+  // Cria se nao existe
+  if (!classesCh) {
+    classesCh = await guild.channels.create({
+      name: '\uD83D\uDCD6\u30FBclasses',
+      type: ChannelType.GuildText,
+      parent: CLASSES_CATEGORY_ID,
+      topic: 'Selecione uma classe para ver seus equipamentos e habilidades',
+      permissionOverwrites: [
+        { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.SendMessages], allow: [PermissionFlagsBits.ViewChannel] },
+        { id: client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels] },
+      ],
+    });
+    logger.info(`Canal de classes criado: ${classesCh.id}`);
+  }
+
+  // Limpa msgs antigas do bot
+  const msgs = await classesCh.messages.fetch({ limit: 20 });
+  for (const [, m] of msgs) {
+    if (m.author.id === client.user.id) await m.delete().catch(() => {});
+  }
+
+  const listaClasses = CLASSES.map(c => `${c.emoji} **${c.nome}** \u2014 ${c.desc}`).join('\n');
+
+  const embed = new EmbedBuilder()
+    .setColor(0x7B2FBE)
+    .setTitle('\uD83D\uDCD6 Classes \u2014 Arkheron')
+    .setDescription(
+      'Conhe\u00e7a todas as classes dispon\u00edveis no jogo!\n' +
+      'Selecione uma classe no menu abaixo para ver os **equipamentos e habilidades**.\n\n' +
+      listaClasses
+    )
+    .addFields(
+      { name: '\uD83C\uDFAE Equipamentos', value: '\uD83D\uDC51 **Coroa** (Slot 1) \u2022 \uD83D\uDCAE **Amuleto** (Slot 2) \u2022 \u2694\uFE0F **Arma 1** (Slot 3) \u2022 \uD83D\uDDE1\uFE0F **Arma 2** (Slot 4)', inline: false },
+    )
+    .setFooter({ text: 'Arkheron SA \u2022 Guia de Classes' });
+
+  const options = CLASSES.map(c => ({
+    label: c.nome,
+    description: c.desc.substring(0, 100),
+    value: c.id,
+    emoji: c.emoji,
+  }));
+
+  const row = new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('select_classe')
+      .setPlaceholder('\uD83D\uDD0D Selecione uma classe...')
+      .addOptions(options)
+  );
+
+  await classesCh.send({ embeds: [embed], components: [row] });
+  logger.info('Painel de classes enviado');
+}
+
+// ─────────────────────────────────────────────
 //  READY
 // ─────────────────────────────────────────────
 client.once('clientReady', async () => {
@@ -791,6 +1190,9 @@ client.once('clientReady', async () => {
 
   // FAQ interativo
   await enviarFAQ(guild);
+
+  // Painel de classes
+  await enviarPainelClasses(guild);
 
   // Auto-cleanup de salas antigas
   setInterval(async () => {
@@ -870,6 +1272,60 @@ client.on('interactionCreate', async (interaction) => {
         await member.roles.add(NOTIFY_ROLE_ID).catch(() => {});
         return interaction.reply({ content: '\uD83D\uDD14 Notifica\u00e7\u00f5es **ativadas**! Voc\u00ea ser\u00e1 notificado quando novas salas forem criadas.', flags: MessageFlags.Ephemeral });
       }
+    }
+
+    // ══════════════════════════════════════════
+    //  SELECT: CLASSE
+    // ══════════════════════════════════════════
+    if (interaction.isStringSelectMenu() && interaction.customId === 'select_classe') {
+      const classeId = interaction.values[0];
+      const classe = CLASSES.find(c => c.id === classeId);
+      if (!classe) return interaction.reply({ content: '\u274C Classe n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+
+      const formatSlot = (slot, icone, label) => {
+        return `${icone} **${slot.nome}**\n` +
+          `> **${slot.habilidade}**\n` +
+          `> ${slot.tags}\n` +
+          `> \uD83D\uDCCA ${slot.stats}\n` +
+          `> *${slot.desc}*\n` +
+          `> \n` +
+          `> **Upgrades:**\n` +
+          `> ${slot.upgrades.replace(/\n/g, '\n> ')}`;
+      };
+
+      const embedPrincipal = new EmbedBuilder()
+        .setColor(classe.cor)
+        .setTitle(`${classe.emoji} ${classe.nome}`)
+        .setDescription(
+          `*${classe.desc}*\n\n` +
+          `\uD83C\uDFC6 **B\u00f4nus de Classe:** ${classe.bonus}`
+        )
+        .setFooter({ text: 'Arkheron SA \u2022 Guia de Classes \u2022 Use o menu para ver outra classe' });
+
+      const embedCoroa = new EmbedBuilder()
+        .setColor(classe.cor)
+        .setTitle('\uD83D\uDC51 Coroa (Slot 1)')
+        .setDescription(formatSlot(classe.coroa));
+
+      const embedAmuleto = new EmbedBuilder()
+        .setColor(classe.cor)
+        .setTitle('\uD83D\uDCAE Amuleto (Slot 2)')
+        .setDescription(formatSlot(classe.amuleto));
+
+      const embedArma1 = new EmbedBuilder()
+        .setColor(classe.cor)
+        .setTitle('\u2694\uFE0F Arma 1 (Slot 3)')
+        .setDescription(formatSlot(classe.arma1));
+
+      const embedArma2 = new EmbedBuilder()
+        .setColor(classe.cor)
+        .setTitle('\uD83D\uDDE1\uFE0F Arma 2 (Slot 4)')
+        .setDescription(formatSlot(classe.arma2));
+
+      return interaction.reply({
+        embeds: [embedPrincipal, embedCoroa, embedAmuleto, embedArma1, embedArma2],
+        flags: MessageFlags.Ephemeral,
+      });
     }
 
     // ══════════════════════════════════════════
