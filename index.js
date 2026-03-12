@@ -40,7 +40,8 @@ const MIN_VOTES = 8; // Mínimo de votos para fechar a sala
 //    id, nome, codigo, vagas, criadorId,
 //    membros: Set, embedMessageId,
 //    textChannelId, voiceChannelId,
-//    votacao: { ativa, sim: Set, nao: Set, messageId }
+//    votacao: { ativa, sim: Set, nao: Set, messageId },
+//    emAndamento: boolean
 //  }
 // ─────────────────────────────────────────────
 const salas = new Map(); // salaId → sala
@@ -68,11 +69,13 @@ function buildSalaEmbed(sala) {
   const membrosCount = sala.membros.size;
   const vagas = sala.vagas;
   const cheio = membrosCount >= vagas;
+  const status = sala.emAndamento ? '🔴 Partida em andamento' : '🟢 Esperando jogadores';
 
   return new EmbedBuilder()
-    .setColor(cheio ? 0xef4444 : 0x7B2FBE)
+    .setColor(sala.emAndamento ? 0xf59e0b : (cheio ? 0xef4444 : 0x7B2FBE))
     .setTitle(`🎮 ${sala.nome}`)
     .addFields(
+      { name: '📊 Status', value: status, inline: true },
       { name: '👥 Vagas', value: `${membrosCount}/${vagas}`, inline: true },
       { name: '⏱️ Criada', value: `<t:${sala.criadoEm}:R>`, inline: true },
       { name: '👤 Criador', value: `<@${sala.criadorId}>`, inline: true },
@@ -107,7 +110,7 @@ function buildPrivadoEmbed(sala) {
     .setFooter({ text: 'Boa partida! 🏆' });
 }
 
-function buildPrivadoBotoes(salaId, userId, criadorId) {
+function buildPrivadoBotoes(salaId, userId, criadorId, emAndamento) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`partida_acabou_${salaId}`)
@@ -119,9 +122,13 @@ function buildPrivadoBotoes(salaId, userId, criadorId) {
       .setStyle(ButtonStyle.Secondary),
   );
 
-  // Botão de forçar fechar só para o criador
+  // Botões exclusivos do criador
   if (userId === criadorId) {
     row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`toggle_andamento_${salaId}`)
+        .setLabel(emAndamento ? '⏸️ Pausar Partida' : '▶️ Iniciar Partida')
+        .setStyle(emAndamento ? ButtonStyle.Secondary : ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(`forcar_fechar_${salaId}`)
         .setLabel('🗑️ Fechar Sala')
@@ -296,18 +303,9 @@ client.on('interactionCreate', async (interaction) => {
       .setMaxLength(20)
       .setRequired(true);
 
-    const vagasInput = new TextInputBuilder()
-      .setCustomId('sala_vagas')
-      .setLabel('Número de vagas (máximo 60)')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Ex: 6')
-      .setMaxLength(2)
-      .setRequired(true);
-
     modal.addComponents(
       new ActionRowBuilder().addComponents(nomeInput),
       new ActionRowBuilder().addComponents(codigoInput),
-      new ActionRowBuilder().addComponents(vagasInput),
     );
 
     return interaction.showModal(modal);
@@ -319,11 +317,7 @@ client.on('interactionCreate', async (interaction) => {
 
     const nome   = interaction.fields.getTextInputValue('sala_nome');
     const codigo = interaction.fields.getTextInputValue('sala_codigo');
-    const vagasRaw = parseInt(interaction.fields.getTextInputValue('sala_vagas'));
-
-    if (isNaN(vagasRaw) || vagasRaw < 1 || vagasRaw > 60) {
-      return interaction.editReply({ content: '❌ Número de vagas inválido! Digite um número entre 1 e 60.' });
-    }
+    const vagasRaw = 60; // Sempre 60 jogadores
 
     const salaId = gerarId();
     const criadorId = interaction.user.id;
@@ -370,6 +364,7 @@ client.on('interactionCreate', async (interaction) => {
       voiceChannelId: voiceChannel.id,
       criadoEm: Math.floor(Date.now() / 1000),
       votacao: { ativa: false, sim: new Set(), nao: new Set(), messageId: null },
+      emAndamento: false, // Inicia esperando jogadores
     };
     salas.set(salaId, sala);
 
@@ -385,7 +380,7 @@ client.on('interactionCreate', async (interaction) => {
     const privMsg = await textChannel.send({
       content: `<@${criadorId}>`,
       embeds: [buildPrivadoEmbed(sala)],
-      components: [buildPrivadoBotoes(salaId, criadorId, criadorId)],
+      components: [buildPrivadoBotoes(salaId, criadorId, criadorId, sala.emAndamento)],
     });
     await privMsg.pin();
 
@@ -421,7 +416,7 @@ client.on('interactionCreate', async (interaction) => {
     if (pinned) {
       await pinned.edit({
         embeds: [buildPrivadoEmbed(sala)],
-        components: [buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId)],
+        components: [buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId, sala.emAndamento)],
       });
     }
 
@@ -501,9 +496,11 @@ client.on('interactionCreate', async (interaction) => {
     // Verifica se atingiu o mínimo
     const precisam = Math.max(MIN_VOTES, Math.ceil(sala.membros.size / 2));
     if (sala.votacao.sim.size >= precisam) {
-      await votMsg.edit({ content: '✅ Votos suficientes! Fechando sala...', components: [] });
-      await interaction.reply({ content: '✅ Votação encerrada! A sala foi fechada.', ephemeral: true });
-      await sleep(1500);
+      await votMsg.edit({ content: '✅ Votos suficientes! 🏁 **A partida acabou!** A sala será fechada em **10 segundos**...', components: [] });
+      await interaction.reply({ content: '✅ Votação encerrada! A sala será fechada em 10 segundos.', ephemeral: true });
+      const textCh = guild.channels.cache.get(sala.textChannelId);
+      await textCh.send('🏁 **A partida acabou!** A sala será fechada em **10 segundos**...');
+      await sleep(10000);
       await fecharSala(salaId, guild, 'votação (maioria atingida)');
       return;
     }
@@ -531,6 +528,37 @@ client.on('interactionCreate', async (interaction) => {
     return;
   }
 
+  // ── BOTÃO: Toggle Partida em Andamento (criador) ──
+  if (interaction.isButton() && interaction.customId.startsWith('toggle_andamento_')) {
+    const salaId = interaction.customId.replace('toggle_andamento_', '');
+    const sala = salas.get(salaId);
+
+    if (!sala) return interaction.reply({ content: '❌ Sala não encontrada.', ephemeral: true });
+    if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '❌ Apenas o criador pode alterar o status da partida.', ephemeral: true });
+
+    // Alterna o status
+    sala.emAndamento = !sala.emAndamento;
+    const novoStatus = sala.emAndamento ? '🔴 Partida iniciada!' : '🟢 Partida pausada!';
+
+    // Atualiza embed público
+    await atualizarEmbedPublico(salaId, guild);
+
+    // Atualiza embed privado
+    const textCh = guild.channels.cache.get(sala.textChannelId);
+    const msgs = await textCh.messages.fetch({ limit: 10 });
+    const pinned = msgs.find(m => m.author.id === client.user.id && m.pinned);
+    if (pinned) {
+      await pinned.edit({
+        embeds: [buildPrivadoEmbed(sala)],
+        components: [buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId, sala.emAndamento)],
+      });
+    }
+
+    await textCh.send(`${novoStatus} Status alterado por <@${interaction.user.id}>`);
+    await interaction.reply({ content: `✅ ${novoStatus}`, ephemeral: true });
+    return;
+  }
+
   // ── BOTÃO: Forçar Fechar (criador) ──
   if (interaction.isButton() && interaction.customId.startsWith('forcar_fechar_')) {
     const salaId = interaction.customId.replace('forcar_fechar_', '');
@@ -539,7 +567,10 @@ client.on('interactionCreate', async (interaction) => {
     if (!sala) return interaction.reply({ content: '❌ Sala não encontrada.', ephemeral: true });
     if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '❌ Apenas o criador pode forçar o fechamento.', ephemeral: true });
 
-    await interaction.reply({ content: '🗑️ Fechando sala...', ephemeral: true });
+    const textCh = guild.channels.cache.get(sala.textChannelId);
+    await textCh.send('🏁 **A partida acabou!** A sala será fechada em **10 segundos**...');
+    await interaction.reply({ content: '🗑️ Fechando sala em 10 segundos...', ephemeral: true });
+    await sleep(10000);
     await fecharSala(salaId, guild, `criador (<@${interaction.user.id}>)`);
     return;
   }
