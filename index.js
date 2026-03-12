@@ -763,9 +763,15 @@ client.on('interactionCreate', async (interaction) => {
       const sala = salas.get(salaId);
       if (sala) {
         const textCh = guild.channels.cache.get(sala.textChannelId);
-        if (textCh) await textCh.send('🛡️ **Sala fechada por um administrador.**');
-        await fecharSala(salaId, guild, `administrador (<@${interaction.user.id}>)`);
+        if (textCh) await textCh.send('🛡️ **Sala fechada por um administrador.** A sala será fechada em **10 segundos**...');
       }
+    }
+
+    await interaction.followUp({ content: `⏳ Aguardando 10 segundos antes de fechar...`, ephemeral: true });
+    await sleep(10000);
+
+    for (const salaId of salasArray) {
+      await fecharSala(salaId, guild, `administrador (<@${interaction.user.id}>)`);
     }
 
     await interaction.followUp({ content: `✅ ${salasArray.length} sala(s) fechada(s) com sucesso!`, ephemeral: true });
@@ -791,9 +797,10 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     const textCh = guild.channels.cache.get(sala.textChannelId);
-    if (textCh) await textCh.send(`🛡️ **Sala fechada por um administrador** (<@${interaction.user.id}>).`);
+    if (textCh) await textCh.send(`🛡️ **Sala fechada por um administrador** (<@${interaction.user.id}>). A sala será fechada em **10 segundos**...`);
 
-    await interaction.reply({ content: `🗑️ Fechando sala **${sala.nome}**...`, ephemeral: true });
+    await interaction.reply({ content: `🗑️ Fechando sala **${sala.nome}** em 10 segundos...`, ephemeral: true });
+    await sleep(10000);
     await fecharSala(salaId, guild, `administrador (<@${interaction.user.id}>)`);
 
     await interaction.followUp({ content: `✅ Sala **${sala.nome}** fechada com sucesso!`, ephemeral: true });
