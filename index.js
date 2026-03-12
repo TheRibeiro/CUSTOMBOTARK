@@ -15,7 +15,7 @@ const {
   ChannelType, EmbedBuilder, ActionRowBuilder,
   ButtonBuilder, ButtonStyle, ModalBuilder,
   TextInputBuilder, TextInputStyle, StringSelectMenuBuilder,
-  MessageFlags,
+  MessageFlags, REST, Routes,
 } = require('discord.js');
 const winston = require('winston');
 
@@ -67,7 +67,7 @@ const client = new Client({
 const {
   DISCORD_TOKEN, GUILD_ID, SALAS_CHANNEL_ID,
   CUSTOM_CATEGORY_ID, LOG_CHANNEL_ID, MIN_ROLE_ID,
-  ADMIN_SALAS_CHANNEL_ID,
+  ADMIN_SALAS_CHANNEL_ID, NOTIFY_ROLE_ID,
 } = process.env;
 
 const DEBUG = process.env.DEBUG_MODE === 'true';
@@ -147,6 +147,15 @@ function carregarHistorico(limite = 10) {
     if (!fs.existsSync(HISTORICO_FILE)) return [];
     const historico = JSON.parse(fs.readFileSync(HISTORICO_FILE, 'utf-8'));
     return historico.slice(-limite);
+  } catch { return []; }
+}
+
+function carregarHistoricoUsuario(userId, limite = 10) {
+  try {
+    if (!fs.existsSync(HISTORICO_FILE)) return [];
+    const historico = JSON.parse(fs.readFileSync(HISTORICO_FILE, 'utf-8'));
+    const doUsuario = historico.filter(h => h.membrosIds && h.membrosIds.includes(userId));
+    return doUsuario.slice(-limite);
   } catch { return []; }
 }
 
@@ -646,14 +655,22 @@ async function enviarFAQ(guild) {
 
   const embed = new EmbedBuilder()
     .setColor(0x7B2FBE)
-    .setTitle('\uD83D\uDCDA Como Funciona — Custom Game')
+    .setTitle('\uD83D\uDCDA Como Funciona \u2014 Custom Game')
     .setDescription(
-      'Clique nos bot\u00f5es abaixo para saber mais sobre cada funcionalidade.\n\n' +
-      '**Resumo r\u00e1pido:**\n' +
-      '1\uFE0F\u20E3 Crie uma sala no canal de salas\n' +
-      '2\uFE0F\u20E3 Jogadores entram clicando no bot\u00e3o\n' +
-      '3\uFE0F\u20E3 O c\u00f3digo do lobby aparece no canal privado\n' +
-      '4\uFE0F\u20E3 Ao terminar, vote para fechar a sala'
+      'Bem-vindo ao sistema de **Custom Game** do Arkheron SA!\n' +
+      'Aqui voc\u00ea pode criar e participar de salas de partidas personalizadas.\n\n' +
+      '**\uD83D\uDCCB Passo a passo:**\n' +
+      '1\uFE0F\u20E3 V\u00e1 ao canal de salas e clique em **"\uD83C\uDFAE Criar Sala"**\n' +
+      '2\uFE0F\u20E3 Preencha o nome e o c\u00f3digo do lobby\n' +
+      '3\uFE0F\u20E3 Jogadores entram clicando em **"\u2705 Entrar na Sala"**\n' +
+      '4\uFE0F\u20E3 O c\u00f3digo aparece no canal privado + DM\n' +
+      '5\uFE0F\u20E3 Ao terminar, vote para fechar a sala\n\n' +
+      '**\uD83D\uDD14 Notifica\u00e7\u00f5es:**\n' +
+      'Ative as notifica\u00e7\u00f5es clicando em **"\uD83D\uDD14 Notifica\u00e7\u00f5es"** no canal de salas.\n' +
+      'Voc\u00ea ser\u00e1 mencionado sempre que uma nova sala for criada!\n\n' +
+      '**\uD83D\uDCCA Hist\u00f3rico:**\n' +
+      'Use o comando `/meuhistorico` para ver suas \u00faltimas partidas e estat\u00edsticas.\n\n' +
+      '*Clique nos bot\u00f5es abaixo para saber mais sobre cada funcionalidade.*'
     )
     .setFooter({ text: 'Arkheron SA \u2022 Custom Game' });
 
@@ -662,10 +679,15 @@ async function enviarFAQ(guild) {
     new ButtonBuilder().setCustomId('faq_votacao').setLabel('\uD83D\uDDF3\uFE0F Vota\u00e7\u00e3o').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('faq_lider').setLabel('\uD83D\uDC51 Lideran\u00e7a').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('faq_limite').setLabel('\u26A0\uFE0F Limites').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('faq_codigo').setLabel('\uD83D\uDD11 C\u00f3digo').setStyle(ButtonStyle.Primary),
   );
 
-  await comoFunciona.send({ embeds: [embed], components: [row1] });
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('faq_codigo').setLabel('\uD83D\uDD11 C\u00f3digo').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('faq_notificacoes').setLabel('\uD83D\uDD14 Notifica\u00e7\u00f5es').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('faq_historico').setLabel('\uD83D\uDCCA Hist\u00f3rico').setStyle(ButtonStyle.Primary),
+  );
+
+  await comoFunciona.send({ embeds: [embed], components: [row1, row2] });
   logger.info('FAQ interativo enviado');
 }
 
@@ -689,6 +711,14 @@ const FAQ_RESPOSTAS = {
   faq_codigo: {
     title: '\uD83D\uDD11 Como mudar o c\u00f3digo do lobby?',
     desc: 'O l\u00edder pode clicar em **"\u270F\uFE0F Alterar C\u00f3digo"** no canal privado a qualquer momento.\n\nUm pop-up vai pedir o novo c\u00f3digo. Todos os membros ser\u00e3o avisados da mudan\u00e7a.',
+  },
+  faq_notificacoes: {
+    title: '\uD83D\uDD14 Como funcionam as notifica\u00e7\u00f5es?',
+    desc: 'No canal de salas, clique no bot\u00e3o **"\uD83D\uDD14 Notifica\u00e7\u00f5es"** para ativar ou desativar.\n\n\u2022 **Ativado** \u2014 Voc\u00ea recebe uma men\u00e7\u00e3o sempre que uma nova sala \u00e9 criada\n\u2022 **Desativado** \u2014 Voc\u00ea n\u00e3o \u00e9 mais notificado\n\nO bot adiciona/remove o cargo automaticamente. Clique novamente para alternar.',
+  },
+  faq_historico: {
+    title: '\uD83D\uDCCA Como ver meu hist\u00f3rico?',
+    desc: 'Digite **`/meuhistorico`** em qualquer canal do servidor.\n\nO bot mostra:\n\u2022 Suas **\u00faltimas 10 partidas**\n\u2022 Nome da sala, dura\u00e7\u00e3o e quantidade de jogadores\n\u2022 Se voc\u00ea foi l\u00edder (\uD83D\uDC51)\n\u2022 **Total de partidas** e **vezes como l\u00edder**\n\nA resposta \u00e9 vis\u00edvel apenas para voc\u00ea.',
   },
 };
 
@@ -725,11 +755,14 @@ client.once('clientReady', async () => {
     )
     .setFooter({ text: 'Arkheron SA \u2022 Custom Game' });
 
+  const criarRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('criar_sala').setLabel('\uD83C\uDFAE Criar Sala').setStyle(ButtonStyle.Primary),
+    ...(NOTIFY_ROLE_ID ? [new ButtonBuilder().setCustomId('toggle_notify').setLabel('\uD83D\uDD14 Notifica\u00e7\u00f5es').setStyle(ButtonStyle.Secondary)] : []),
+  );
+
   await salasCh.send({
     embeds: [criarEmbed],
-    components: [new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('criar_sala').setLabel('\uD83C\uDFAE Criar Sala').setStyle(ButtonStyle.Primary)
-    )],
+    components: [criarRow],
   });
 
   // Painel admin
@@ -741,6 +774,20 @@ client.once('clientReady', async () => {
       await adminCh.send({ embeds: [buildAdminEmbed()], components: buildAdminBotoes() });
     }
   }
+
+  // Registrar slash commands
+  try {
+    const rest = new REST().setToken(DISCORD_TOKEN);
+    await rest.put(Routes.applicationGuildCommands(client.user.id, GUILD_ID), {
+      body: [
+        {
+          name: 'meuhistorico',
+          description: 'Veja seu hist\u00f3rico pessoal de partidas custom',
+        },
+      ],
+    });
+    logger.info('Slash commands registrados');
+  } catch (e) { logger.error(`Erro registrar commands: ${e.message}`); }
 
   // FAQ interativo
   await enviarFAQ(guild);
@@ -768,12 +815,61 @@ client.on('interactionCreate', async (interaction) => {
     const guild = interaction.guild;
 
     // ══════════════════════════════════════════
+    //  SLASH COMMAND: /meuhistorico
+    // ══════════════════════════════════════════
+    if (interaction.isChatInputCommand() && interaction.commandName === 'meuhistorico') {
+      const historico = carregarHistoricoUsuario(interaction.user.id, 10);
+
+      if (historico.length === 0) {
+        return interaction.reply({ content: '\uD83D\uDCED Voc\u00ea ainda n\u00e3o participou de nenhuma partida registrada.', flags: MessageFlags.Ephemeral });
+      }
+
+      const totalPartidas = carregarHistoricoUsuario(interaction.user.id, 200).length;
+      const vezesCriador = carregarHistoricoUsuario(interaction.user.id, 200).filter(h => h.criadorId === interaction.user.id).length;
+
+      const lista = historico.reverse().map((h, i) => {
+        const duracao = h.fechadoEm && h.criadoEm ? Math.round((h.fechadoEm - h.criadoEm) / 60) : '?';
+        const foiLider = h.criadorId === interaction.user.id ? ' \uD83D\uDC51' : '';
+        return `**${i + 1}.** \uD83C\uDFAE **${h.nome}**${foiLider}\n   \u2514 ${h.membros} jogadores \u2022 ${duracao} min \u2022 <t:${h.fechadoEm}:d>`;
+      }).join('\n\n');
+
+      const embed = new EmbedBuilder()
+        .setColor(0x7B2FBE)
+        .setTitle(`\uD83D\uDCCA Hist\u00f3rico de ${interaction.user.displayName}`)
+        .setDescription(lista.substring(0, 4000))
+        .addFields(
+          { name: '\uD83C\uDFAE Total de Partidas', value: `${totalPartidas}`, inline: true },
+          { name: '\uD83D\uDC51 Vezes como L\u00edder', value: `${vezesCriador}`, inline: true },
+        )
+        .setThumbnail(interaction.user.displayAvatarURL())
+        .setFooter({ text: 'Arkheron SA \u2022 \u00DAltimas 10 partidas' });
+
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    // ══════════════════════════════════════════
     //  FAQ
     // ══════════════════════════════════════════
     if (interaction.isButton() && FAQ_RESPOSTAS[interaction.customId]) {
       const faq = FAQ_RESPOSTAS[interaction.customId];
       const embed = new EmbedBuilder().setColor(0x7B2FBE).setTitle(faq.title).setDescription(faq.desc);
       return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+
+    // ══════════════════════════════════════════
+    //  TOGGLE NOTIFICACOES
+    // ══════════════════════════════════════════
+    if (interaction.isButton() && interaction.customId === 'toggle_notify') {
+      if (!NOTIFY_ROLE_ID) return interaction.reply({ content: '\u274C Notifica\u00e7\u00f5es n\u00e3o configuradas.', flags: MessageFlags.Ephemeral });
+
+      const member = interaction.member;
+      if (member.roles.cache.has(NOTIFY_ROLE_ID)) {
+        await member.roles.remove(NOTIFY_ROLE_ID).catch(() => {});
+        return interaction.reply({ content: '\uD83D\uDD15 Notifica\u00e7\u00f5es **desativadas**. Voc\u00ea n\u00e3o ser\u00e1 mais notificado quando novas salas forem criadas.', flags: MessageFlags.Ephemeral });
+      } else {
+        await member.roles.add(NOTIFY_ROLE_ID).catch(() => {});
+        return interaction.reply({ content: '\uD83D\uDD14 Notifica\u00e7\u00f5es **ativadas**! Voc\u00ea ser\u00e1 notificado quando novas salas forem criadas.', flags: MessageFlags.Ephemeral });
+      }
     }
 
     // ══════════════════════════════════════════
@@ -844,7 +940,8 @@ client.on('interactionCreate', async (interaction) => {
       salas.set(salaId, sala);
 
       const salasCh = guild.channels.cache.get(SALAS_CHANNEL_ID);
-      const embedMsg = await salasCh.send({ embeds: [buildSalaEmbed(sala)], components: [buildSalaBotoes(salaId)] });
+      const notifyContent = NOTIFY_ROLE_ID ? `<@&${NOTIFY_ROLE_ID}> Nova sala criada!` : undefined;
+      const embedMsg = await salasCh.send({ content: notifyContent, embeds: [buildSalaEmbed(sala)], components: [buildSalaBotoes(salaId)] });
       sala.embedMessageId = embedMsg.id;
 
       const privMsg = await textChannel.send({
