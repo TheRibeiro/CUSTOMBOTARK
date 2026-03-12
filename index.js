@@ -83,17 +83,18 @@ function buildSalaEmbed(sala) {
     .setFooter({ text: cheio ? '🔴 Sala cheia' : '🟢 Aceitando jogadores' });
 }
 
-function buildSalaBotoes(salaId, cheio = false) {
+function buildSalaBotoes(salaId, cheio = false, emAndamento = false) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`entrar_${salaId}`)
       .setLabel('✅ Entrar na Sala')
       .setStyle(ButtonStyle.Success)
-      .setDisabled(cheio),
+      .setDisabled(cheio || emAndamento),
     new ButtonBuilder()
       .setCustomId(`sair_${salaId}`)
       .setLabel('🚪 Sair da Sala')
-      .setStyle(ButtonStyle.Secondary),
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(emAndamento),
   );
 }
 
@@ -111,7 +112,11 @@ function buildPrivadoEmbed(sala) {
 }
 
 function buildPrivadoBotoes(salaId, userId, criadorId, emAndamento) {
-  const row = new ActionRowBuilder().addComponents(
+  const row1 = new ActionRowBuilder();
+  const row2 = new ActionRowBuilder();
+
+  // Primeira linha - botões comuns
+  row1.addComponents(
     new ButtonBuilder()
       .setCustomId(`partida_acabou_${salaId}`)
       .setLabel('🏁 Partida Acabou')
@@ -119,24 +124,30 @@ function buildPrivadoBotoes(salaId, userId, criadorId, emAndamento) {
     new ButtonBuilder()
       .setCustomId(`sair_privado_${salaId}`)
       .setLabel('🚪 Sair da Sala')
-      .setStyle(ButtonStyle.Secondary),
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(emAndamento),
   );
 
-  // Botões exclusivos do criador
+  // Segunda linha - botões exclusivos do criador
   if (userId === criadorId) {
-    row.addComponents(
+    row2.addComponents(
       new ButtonBuilder()
         .setCustomId(`toggle_andamento_${salaId}`)
         .setLabel(emAndamento ? '⏸️ Pausar Partida' : '▶️ Iniciar Partida')
         .setStyle(emAndamento ? ButtonStyle.Secondary : ButtonStyle.Success),
       new ButtonBuilder()
+        .setCustomId(`encerrar_partida_${salaId}`)
+        .setLabel('🏁 Encerrar Partida')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
         .setCustomId(`forcar_fechar_${salaId}`)
         .setLabel('🗑️ Fechar Sala')
         .setStyle(ButtonStyle.Danger),
     );
+    return [row1, row2];
   }
 
-  return row;
+  return [row1];
 }
 
 function buildVotacaoEmbed(sala) {
@@ -209,7 +220,7 @@ async function atualizarEmbedPublico(salaId, guild) {
     const salasCh = guild.channels.cache.get(SALAS_CHANNEL_ID);
     const msg = await salasCh.messages.fetch(sala.embedMessageId);
     const cheio = sala.membros.size >= sala.vagas;
-    await msg.edit({ embeds: [buildSalaEmbed(sala)], components: [buildSalaBotoes(salaId, cheio)] });
+    await msg.edit({ embeds: [buildSalaEmbed(sala)], components: [buildSalaBotoes(salaId, cheio, sala.emAndamento)] });
   } catch {}
 }
 
@@ -372,7 +383,7 @@ client.on('interactionCreate', async (interaction) => {
     const salasCh = guild.channels.cache.get(SALAS_CHANNEL_ID);
     const embedMsg = await salasCh.send({
       embeds: [buildSalaEmbed(sala)],
-      components: [buildSalaBotoes(salaId)],
+      components: [buildSalaBotoes(salaId, false, sala.emAndamento)],
     });
     sala.embedMessageId = embedMsg.id;
 
@@ -380,7 +391,7 @@ client.on('interactionCreate', async (interaction) => {
     const privMsg = await textChannel.send({
       content: `<@${criadorId}>`,
       embeds: [buildPrivadoEmbed(sala)],
-      components: [buildPrivadoBotoes(salaId, criadorId, criadorId, sala.emAndamento)],
+      components: buildPrivadoBotoes(salaId, criadorId, criadorId, sala.emAndamento),
     });
     await privMsg.pin();
 
@@ -395,6 +406,7 @@ client.on('interactionCreate', async (interaction) => {
     const sala = salas.get(salaId);
 
     if (!sala) return interaction.reply({ content: '❌ Sala não encontrada ou já foi fechada.', ephemeral: true });
+    if (sala.emAndamento) return interaction.reply({ content: '❌ A partida já está em andamento! Não é possível entrar agora.', ephemeral: true });
     if (sala.membros.size >= sala.vagas) return interaction.reply({ content: '❌ Sala cheia!', ephemeral: true });
     if (sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você já está nessa sala!', ephemeral: true });
 
@@ -416,7 +428,7 @@ client.on('interactionCreate', async (interaction) => {
     if (pinned) {
       await pinned.edit({
         embeds: [buildPrivadoEmbed(sala)],
-        components: [buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId, sala.emAndamento)],
+        components: buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId, sala.emAndamento),
       });
     }
 
@@ -550,12 +562,28 @@ client.on('interactionCreate', async (interaction) => {
     if (pinned) {
       await pinned.edit({
         embeds: [buildPrivadoEmbed(sala)],
-        components: [buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId, sala.emAndamento)],
+        components: buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId, sala.emAndamento),
       });
     }
 
     await textCh.send(`${novoStatus} Status alterado por <@${interaction.user.id}>`);
     await interaction.reply({ content: `✅ ${novoStatus}`, ephemeral: true });
+    return;
+  }
+
+  // ── BOTÃO: Encerrar Partida (criador) ──
+  if (interaction.isButton() && interaction.customId.startsWith('encerrar_partida_')) {
+    const salaId = interaction.customId.replace('encerrar_partida_', '');
+    const sala = salas.get(salaId);
+
+    if (!sala) return interaction.reply({ content: '❌ Sala não encontrada.', ephemeral: true });
+    if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '❌ Apenas o criador pode encerrar a partida.', ephemeral: true });
+
+    const textCh = guild.channels.cache.get(sala.textChannelId);
+    await textCh.send('🏁 **O líder encerrou a partida!** A sala será fechada em **10 segundos**...');
+    await interaction.reply({ content: '🏁 Encerrando partida em 10 segundos...', ephemeral: true });
+    await sleep(10000);
+    await fecharSala(salaId, guild, `encerrada pelo líder (<@${interaction.user.id}>)`);
     return;
   }
 
