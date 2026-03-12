@@ -30,6 +30,7 @@ const {
   CUSTOM_CATEGORY_ID,
   LOG_CHANNEL_ID,
   MIN_ROLE_ID,
+  ADMIN_SALAS_CHANNEL_ID,
 } = process.env;
 
 const MIN_VOTES = 8; // Mínimo de votos para fechar a sala
@@ -208,6 +209,94 @@ async function fecharSala(salaId, guild, motivo = 'votação') {
   }
 
   salas.delete(salaId);
+
+  // Atualiza painel de admin
+  await atualizarPainelAdmin(guild);
+}
+
+// ─────────────────────────────────────────────
+//  PAINEL DE ADMINISTRAÇÃO
+// ─────────────────────────────────────────────
+async function atualizarPainelAdmin(guild) {
+  if (!ADMIN_SALAS_CHANNEL_ID) return;
+
+  try {
+    const adminCh = guild.channels.cache.get(ADMIN_SALAS_CHANNEL_ID);
+    if (!adminCh) return;
+
+    const msgs = await adminCh.messages.fetch({ limit: 10 });
+    const painelMsg = msgs.find(m => m.author.id === client.user.id && m.embeds.length > 0 && m.embeds[0].title?.includes('Painel de Administração'));
+
+    if (!painelMsg) return;
+
+    const embed = buildAdminPainelEmbed();
+    const components = buildAdminPainelBotoes();
+
+    await painelMsg.edit({ embeds: [embed], components });
+  } catch (e) {
+    console.error('Erro ao atualizar painel admin:', e);
+  }
+}
+
+function buildAdminPainelEmbed() {
+  const salasArray = Array.from(salas.values());
+
+  const embed = new EmbedBuilder()
+    .setColor(0x7B2FBE)
+    .setTitle('🛡️ Painel de Administração — Salas Ativas')
+    .setDescription(salasArray.length === 0
+      ? '📭 Nenhuma sala ativa no momento.'
+      : `🎮 **${salasArray.length} sala(s) ativa(s)**\n\nUse o menu abaixo para gerenciar as salas.`)
+    .setFooter({ text: `Última atualização: ${new Date().toLocaleTimeString('pt-BR')}` });
+
+  if (salasArray.length > 0) {
+    const salasInfo = salasArray.map((s, i) => {
+      const status = s.emAndamento ? '🔴' : '🟢';
+      return `**${i + 1}.** ${status} **${s.nome}**\n   └ Criador: <@${s.criadorId}> | Jogadores: ${s.membros.size}/${s.vagas} | ID: \`${s.id}\``;
+    }).join('\n\n');
+
+    embed.addFields({ name: '📋 Salas Ativas', value: salasInfo });
+  }
+
+  return embed;
+}
+
+function buildAdminPainelBotoes() {
+  const salasArray = Array.from(salas.values());
+  const components = [];
+
+  // Select menu para escolher sala
+  if (salasArray.length > 0) {
+    const options = salasArray.slice(0, 25).map(s => ({
+      label: `${s.nome} (${s.membros.size}/${s.vagas})`,
+      description: `Criador: ${s.criadorId} | Status: ${s.emAndamento ? 'Em andamento' : 'Esperando'}`,
+      value: s.id,
+      emoji: s.emAndamento ? '🔴' : '🟢',
+    }));
+
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId('admin_select_sala')
+      .setPlaceholder('Selecione uma sala para deletar')
+      .addOptions(options);
+
+    components.push(new ActionRowBuilder().addComponents(selectMenu));
+  }
+
+  // Botão de refresh
+  const refreshRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('admin_refresh')
+      .setLabel('🔄 Atualizar Lista')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId('admin_delete_all')
+      .setLabel('🗑️ Fechar Todas as Salas')
+      .setStyle(ButtonStyle.Danger)
+      .setDisabled(salasArray.length === 0),
+  );
+  components.push(refreshRow);
+
+  return components;
 }
 
 // ─────────────────────────────────────────────
@@ -261,6 +350,26 @@ client.once('ready', async () => {
 
   await salasCh.send({ embeds: [criarEmbed], components: [criarRow] });
   console.log('✅ Painel de salas enviado!');
+
+  // Envia painel de administração (se existir o canal)
+  if (ADMIN_SALAS_CHANNEL_ID) {
+    const adminCh = guild.channels.cache.get(ADMIN_SALAS_CHANNEL_ID);
+    if (adminCh) {
+      // Limpa mensagens antigas do painel admin
+      const adminMsgs = await adminCh.messages.fetch({ limit: 20 });
+      for (const [, m] of adminMsgs) {
+        if (m.author.id === client.user.id) {
+          await m.delete().catch(() => {});
+        }
+      }
+
+      const adminEmbed = buildAdminPainelEmbed();
+      const adminComponents = buildAdminPainelBotoes();
+
+      await adminCh.send({ embeds: [adminEmbed], components: adminComponents });
+      console.log('✅ Painel de administração enviado!');
+    }
+  }
 });
 
 // ─────────────────────────────────────────────
@@ -422,13 +531,13 @@ client.on('interactionCreate', async (interaction) => {
     // Atualiza embed público
     await atualizarEmbedPublico(salaId, guild);
 
-    // Atualiza embed privado
+    // Atualiza embed privado (sempre passa o criador como userId para manter os botões dele)
     const msgs = await textCh.messages.fetch({ limit: 10 });
     const pinned = msgs.find(m => m.author.id === client.user.id && m.pinned);
     if (pinned) {
       await pinned.edit({
         embeds: [buildPrivadoEmbed(sala)],
-        components: buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId, sala.emAndamento),
+        components: buildPrivadoBotoes(salaId, sala.criadorId, sala.criadorId, sala.emAndamento),
       });
     }
 
@@ -555,14 +664,14 @@ client.on('interactionCreate', async (interaction) => {
     // Atualiza embed público
     await atualizarEmbedPublico(salaId, guild);
 
-    // Atualiza embed privado
+    // Atualiza embed privado (sempre passa o criador para manter os botões)
     const textCh = guild.channels.cache.get(sala.textChannelId);
     const msgs = await textCh.messages.fetch({ limit: 10 });
     const pinned = msgs.find(m => m.author.id === client.user.id && m.pinned);
     if (pinned) {
       await pinned.edit({
         embeds: [buildPrivadoEmbed(sala)],
-        components: buildPrivadoBotoes(salaId, interaction.user.id, sala.criadorId, sala.emAndamento),
+        components: buildPrivadoBotoes(salaId, sala.criadorId, sala.criadorId, sala.emAndamento),
       });
     }
 
@@ -602,6 +711,82 @@ client.on('interactionCreate', async (interaction) => {
     await fecharSala(salaId, guild, `criador (<@${interaction.user.id}>)`);
     return;
   }
+
+  // ── ADMIN: Refresh Painel ──
+  if (interaction.isButton() && interaction.customId === 'admin_refresh') {
+    // Verifica se é admin
+    const member = interaction.member;
+    const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator) ||
+      member.roles.cache.some(r => ['👑 Dono','⚙️ Admin','🛡️ Moderador'].includes(r.name));
+
+    if (!isAdmin) {
+      return interaction.reply({ content: '❌ Você não tem permissão para usar este painel!', ephemeral: true });
+    }
+
+    await atualizarPainelAdmin(guild);
+    await interaction.reply({ content: '✅ Painel atualizado!', ephemeral: true });
+    return;
+  }
+
+  // ── ADMIN: Deletar Todas as Salas ──
+  if (interaction.isButton() && interaction.customId === 'admin_delete_all') {
+    // Verifica se é admin
+    const member = interaction.member;
+    const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator) ||
+      member.roles.cache.some(r => ['👑 Dono','⚙️ Admin'].includes(r.name));
+
+    if (!isAdmin) {
+      return interaction.reply({ content: '❌ Você não tem permissão para usar esta ação!', ephemeral: true });
+    }
+
+    const salasArray = Array.from(salas.keys());
+    if (salasArray.length === 0) {
+      return interaction.reply({ content: '❌ Não há salas ativas para fechar!', ephemeral: true });
+    }
+
+    await interaction.reply({ content: `🗑️ Fechando ${salasArray.length} sala(s)...`, ephemeral: true });
+
+    for (const salaId of salasArray) {
+      const sala = salas.get(salaId);
+      if (sala) {
+        const textCh = guild.channels.cache.get(sala.textChannelId);
+        if (textCh) await textCh.send('🛡️ **Sala fechada por um administrador.**');
+        await fecharSala(salaId, guild, `administrador (<@${interaction.user.id}>)`);
+      }
+    }
+
+    await interaction.followUp({ content: `✅ ${salasArray.length} sala(s) fechada(s) com sucesso!`, ephemeral: true });
+    return;
+  }
+
+  // ── ADMIN: Select Menu - Deletar Sala Específica ──
+  if (interaction.isStringSelectMenu() && interaction.customId === 'admin_select_sala') {
+    // Verifica se é admin
+    const member = interaction.member;
+    const isAdmin = member.permissions.has(PermissionFlagsBits.Administrator) ||
+      member.roles.cache.some(r => ['👑 Dono','⚙️ Admin','🛡️ Moderador'].includes(r.name));
+
+    if (!isAdmin) {
+      return interaction.reply({ content: '❌ Você não tem permissão para usar este painel!', ephemeral: true });
+    }
+
+    const salaId = interaction.values[0];
+    const sala = salas.get(salaId);
+
+    if (!sala) {
+      return interaction.reply({ content: '❌ Sala não encontrada ou já foi fechada!', ephemeral: true });
+    }
+
+    const textCh = guild.channels.cache.get(sala.textChannelId);
+    if (textCh) await textCh.send(`🛡️ **Sala fechada por um administrador** (<@${interaction.user.id}>).`);
+
+    await interaction.reply({ content: `🗑️ Fechando sala **${sala.nome}**...`, ephemeral: true });
+    await fecharSala(salaId, guild, `administrador (<@${interaction.user.id}>)`);
+
+    await interaction.followUp({ content: `✅ Sala **${sala.nome}** fechada com sucesso!`, ephemeral: true });
+    return;
+  }
+
   } catch (error) {
     console.error(`Erro ao processar interação ${interaction?.customId || interaction?.commandName || 'desconhecida'}:`, error);
     try {
