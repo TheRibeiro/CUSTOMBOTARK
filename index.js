@@ -249,7 +249,8 @@ client.once('ready', async () => {
 //  INTERAÇÕES
 // ─────────────────────────────────────────────
 client.on('interactionCreate', async (interaction) => {
-  const guild = interaction.guild;
+  try {
+    const guild = interaction.guild;
 
   // ── BOTÃO: Criar Sala ──
   if (interaction.isButton() && interaction.customId === 'criar_sala') {
@@ -439,8 +440,8 @@ client.on('interactionCreate', async (interaction) => {
     if (!sala) return interaction.reply({ content: '❌ Sala não encontrada.', ephemeral: true });
     if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você não está nessa sala.', ephemeral: true });
 
-    await removerMembro(salaId, interaction.user.id, guild);
     await interaction.reply({ content: '✅ Você saiu da sala.', ephemeral: true });
+    await removerMembro(salaId, interaction.user.id, guild);
     return;
   }
 
@@ -452,8 +453,8 @@ client.on('interactionCreate', async (interaction) => {
     if (!sala) return interaction.reply({ content: '❌ Sala não encontrada.', ephemeral: true });
     if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '❌ Você não está nessa sala.', ephemeral: true });
 
-    await removerMembro(salaId, interaction.user.id, guild);
     await interaction.reply({ content: '✅ Você saiu da sala.', ephemeral: true });
+    await removerMembro(salaId, interaction.user.id, guild);
     return;
   }
 
@@ -501,9 +502,10 @@ client.on('interactionCreate', async (interaction) => {
     const precisam = Math.max(MIN_VOTES, Math.ceil(sala.membros.size / 2));
     if (sala.votacao.sim.size >= precisam) {
       await votMsg.edit({ content: '✅ Votos suficientes! Fechando sala...', components: [] });
+      await interaction.reply({ content: '✅ Votação encerrada! A sala foi fechada.', ephemeral: true });
       await sleep(1500);
       await fecharSala(salaId, guild, 'votação (maioria atingida)');
-      return interaction.reply({ content: '✅ Votação encerrada! A sala foi fechada.', ephemeral: true });
+      return;
     }
 
     await interaction.reply({ content: '✅ Voto registrado!', ephemeral: true });
@@ -540,6 +542,18 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.reply({ content: '🗑️ Fechando sala...', ephemeral: true });
     await fecharSala(salaId, guild, `criador (<@${interaction.user.id}>)`);
     return;
+  }
+  } catch (error) {
+    console.error(`Erro ao processar interação ${interaction?.customId || interaction?.commandName || 'desconhecida'}:`, error);
+    try {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: '❌ Ocorreu um erro interno ao processar sua ação. Tente novamente.', ephemeral: true });
+      } else {
+        await interaction.followUp({ content: '❌ Ocorreu um erro interno ao processar sua ação. Tente novamente.', ephemeral: true });
+      }
+    } catch (e) {
+      // Falhou ao tentar responder o erro
+    }
   }
 });
 
@@ -579,4 +593,17 @@ async function removerMembro(salaId, userId, guild) {
 client.login(DISCORD_TOKEN).catch(err => {
   console.error('❌ Token inválido:', err.message);
   process.exit(1);
+});
+
+// Eventos de falha globais para evitar que o bot feche
+client.on('error', (error) => {
+  console.error('Discord Client Error:', error);
+});
+
+process.on('unhandledRejection', (error) => {
+  console.error('Unhandled Promise Rejection:', error);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
 });
