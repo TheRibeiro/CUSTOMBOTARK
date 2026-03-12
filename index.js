@@ -9,13 +9,24 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 const {
   Client, GatewayIntentBits, PermissionFlagsBits,
   ChannelType, EmbedBuilder, ActionRowBuilder,
   ButtonBuilder, ButtonStyle, ModalBuilder,
   TextInputBuilder, TextInputStyle, StringSelectMenuBuilder,
+  MessageFlags,
 } = require('discord.js');
 const winston = require('winston');
+
+// ─────────────────────────────────────────────
+//  HTTP HEALTH CHECK (Render precisa de porta aberta)
+// ─────────────────────────────────────────────
+const PORT = process.env.PORT || 10000;
+http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), salas: salas?.size ?? 0 }));
+}).listen(PORT);
 
 // ─────────────────────────────────────────────
 //  LOGGER
@@ -301,7 +312,7 @@ function buildConfirmacao(action, salaId, membrosCount) {
     new ButtonBuilder().setCustomId(`cancelar_acao_${salaId}`).setLabel('\u274C Cancelar').setStyle(ButtonStyle.Secondary),
   );
 
-  return { embeds: [embed], components: [row], ephemeral: true };
+  return { embeds: [embed], components: [row], flags: MessageFlags.Ephemeral };
 }
 
 // ─────────────────────────────────────────────
@@ -684,7 +695,7 @@ const FAQ_RESPOSTAS = {
 // ─────────────────────────────────────────────
 //  READY
 // ─────────────────────────────────────────────
-client.once('ready', async () => {
+client.once('clientReady', async () => {
   logger.info(`Bot online: ${client.user.tag}`);
 
   const guild = client.guilds.cache.get(GUILD_ID);
@@ -762,7 +773,7 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && FAQ_RESPOSTAS[interaction.customId]) {
       const faq = FAQ_RESPOSTAS[interaction.customId];
       const embed = new EmbedBuilder().setColor(0x7B2FBE).setTitle(faq.title).setDescription(faq.desc);
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     // ══════════════════════════════════════════
@@ -770,19 +781,19 @@ client.on('interactionCreate', async (interaction) => {
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'criar_sala') {
       if (!temCargoMinimo(interaction.member)) {
-        return interaction.reply({ content: '\u274C Voc\u00ea precisa do cargo **\uD83C\uDFAE Jogador** ou superior!', ephemeral: true });
+        return interaction.reply({ content: '\u274C Voc\u00ea precisa do cargo **\uD83C\uDFAE Jogador** ou superior!', flags: MessageFlags.Ephemeral });
       }
       if (salas.size >= MAX_SALAS) {
-        return interaction.reply({ content: `\u274C Limite de ${MAX_SALAS} salas atingido!`, ephemeral: true });
+        return interaction.reply({ content: `\u274C Limite de ${MAX_SALAS} salas atingido!`, flags: MessageFlags.Ephemeral });
       }
       if ([...salas.values()].some(s => s.criadorId === interaction.user.id && !s.fechando)) {
-        return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 tem uma sala ativa!', ephemeral: true });
+        return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 tem uma sala ativa!', flags: MessageFlags.Ephemeral });
       }
       // Cooldown
       const lastClose = cooldowns.get(interaction.user.id);
       if (lastClose && Date.now() - lastClose < COOLDOWN_MS) {
         const restante = Math.ceil((COOLDOWN_MS - (Date.now() - lastClose)) / 1000);
-        return interaction.reply({ content: `\u23F3 Aguarde **${restante}s** antes de criar outra sala.`, ephemeral: true });
+        return interaction.reply({ content: `\u23F3 Aguarde **${restante}s** antes de criar outra sala.`, flags: MessageFlags.Ephemeral });
       }
 
       const modal = new ModalBuilder().setCustomId('modal_criar_sala').setTitle('\uD83C\uDFAE Criar Sala de Custom Game');
@@ -801,7 +812,7 @@ client.on('interactionCreate', async (interaction) => {
     //  MODAL: CRIAR SALA
     // ══════════════════════════════════════════
     if (interaction.isModalSubmit() && interaction.customId === 'modal_criar_sala') {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const nome = interaction.fields.getTextInputValue('sala_nome');
       const codigo = interaction.fields.getTextInputValue('sala_codigo');
       const salaId = gerarId();
@@ -858,8 +869,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_alterar_codigo_')) {
       const salaId = interaction.customId.replace('modal_alterar_codigo_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
 
       const novoCodigo = interaction.fields.getTextInputValue('novo_codigo');
       sala.codigo = novoCodigo;
@@ -870,7 +881,7 @@ client.on('interactionCreate', async (interaction) => {
       const textCh = guild.channels.cache.get(sala.textChannelId);
       if (textCh) await textCh.send(`\uD83D\uDD11 **C\u00f3digo do lobby atualizado** por <@${interaction.user.id}>!\nNovo c\u00f3digo: \`\`\`${novoCodigo}\`\`\``).catch(() => {});
 
-      await interaction.reply({ content: `\u2705 C\u00f3digo alterado para \`${novoCodigo}\``, ephemeral: true });
+      await interaction.reply({ content: `\u2705 C\u00f3digo alterado para \`${novoCodigo}\``, flags: MessageFlags.Ephemeral });
       logger.info(`Codigo alterado na sala ${salaId}: ${novoCodigo}`);
       return;
     }
@@ -882,15 +893,15 @@ client.on('interactionCreate', async (interaction) => {
       const salaId = interaction.customId.replace('entrar_', '');
       const sala = salas.get(salaId);
 
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada ou fechando.', ephemeral: true });
-      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', ephemeral: true });
-      if (sala.membros.size >= sala.vagas) return interaction.reply({ content: '\u274C Sala cheia!', ephemeral: true });
-      if (sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 est\u00e1 nessa sala!', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada ou fechando.', flags: MessageFlags.Ephemeral });
+      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', flags: MessageFlags.Ephemeral });
+      if (sala.membros.size >= sala.vagas) return interaction.reply({ content: '\u274C Sala cheia!', flags: MessageFlags.Ephemeral });
+      if (sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 est\u00e1 nessa sala!', flags: MessageFlags.Ephemeral });
 
       // Limite: 1 sala por membro
       const jaEstaEmOutra = [...salas.values()].some(s => s.membros.has(interaction.user.id) && s.id !== salaId && !s.fechando);
       if (jaEstaEmOutra) {
-        return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 est\u00e1 em outra sala! Saia dela primeiro.', ephemeral: true });
+        return interaction.reply({ content: '\u274C Voc\u00ea j\u00e1 est\u00e1 em outra sala! Saia dela primeiro.', flags: MessageFlags.Ephemeral });
       }
 
       sala.membros.add(interaction.user.id);
@@ -925,7 +936,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       salvarEstado();
-      await interaction.reply({ content: `\u2705 Voc\u00ea entrou! Acesse: ${textCh}`, ephemeral: true });
+      await interaction.reply({ content: `\u2705 Voc\u00ea entrou! Acesse: ${textCh}`, flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -935,10 +946,10 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('sair_') && !interaction.customId.startsWith('sair_privado_')) {
       const salaId = interaction.customId.replace('sair_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', ephemeral: true });
-      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', ephemeral: true });
-      await interaction.reply({ content: '\u2705 Voc\u00ea saiu da sala.', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: '\u2705 Voc\u00ea saiu da sala.', flags: MessageFlags.Ephemeral });
       await removerMembro(salaId, interaction.user.id, guild);
       return;
     }
@@ -949,10 +960,10 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('sair_privado_')) {
       const salaId = interaction.customId.replace('sair_privado_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', ephemeral: true });
-      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', ephemeral: true });
-      await interaction.reply({ content: '\u2705 Voc\u00ea saiu da sala.', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.emAndamento) return interaction.reply({ content: '\u274C Partida em andamento!', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: '\u2705 Voc\u00ea saiu da sala.', flags: MessageFlags.Ephemeral });
       await removerMembro(salaId, interaction.user.id, guild);
       return;
     }
@@ -963,9 +974,9 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('partida_acabou_')) {
       const salaId = interaction.customId.replace('partida_acabou_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', ephemeral: true });
-      if (sala.votacao.ativa) return interaction.reply({ content: '\u274C J\u00e1 tem vota\u00e7\u00e3o em andamento!', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
+      if (sala.votacao.ativa) return interaction.reply({ content: '\u274C J\u00e1 tem vota\u00e7\u00e3o em andamento!', flags: MessageFlags.Ephemeral });
 
       sala.votacao = { ativa: true, sim: new Set(), nao: new Set(), messageId: null, iniciadaEm: Date.now() };
 
@@ -978,7 +989,7 @@ client.on('interactionCreate', async (interaction) => {
       sala.votacao.messageId = votMsg.id;
       iniciarVotacaoTimeout(salaId, guild);
       salvarEstado();
-      await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o iniciada!', ephemeral: true });
+      await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o iniciada!', flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -988,8 +999,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('votar_sim_')) {
       const salaId = interaction.customId.replace('votar_sim_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Vota\u00e7\u00e3o n\u00e3o encontrada.', ephemeral: true });
-      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', ephemeral: true });
+      if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Vota\u00e7\u00e3o n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
 
       const trocou = sala.votacao.nao.has(interaction.user.id);
       sala.votacao.sim.add(interaction.user.id);
@@ -1009,7 +1020,7 @@ client.on('interactionCreate', async (interaction) => {
           const votMsg = await textCh.messages.fetch(sala.votacao.messageId).catch(() => null);
           if (votMsg) await votMsg.edit({ content: '\u2705 Votos suficientes! \uD83C\uDFC1 **A partida acabou!**', embeds: [], components: [] });
         }
-        await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o aprovada! Sala ser\u00e1 fechada.', ephemeral: true });
+        await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o aprovada! Sala ser\u00e1 fechada.', flags: MessageFlags.Ephemeral });
         await agendarFechamento(salaId, guild, 'vota\u00e7\u00e3o (maioria)');
         return;
       }
@@ -1018,7 +1029,7 @@ client.on('interactionCreate', async (interaction) => {
       const feedback = trocou
         ? '\u2705 Voto alterado para **Sim**. Pode mudar a qualquer momento.'
         : '\u2705 Voc\u00ea votou **Sim**. Pode mudar para **N\u00e3o** a qualquer momento.';
-      await interaction.reply({ content: feedback, ephemeral: true });
+      await interaction.reply({ content: feedback, flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -1028,8 +1039,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('votar_nao_')) {
       const salaId = interaction.customId.replace('votar_nao_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Vota\u00e7\u00e3o n\u00e3o encontrada.', ephemeral: true });
-      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', ephemeral: true });
+      if (!sala || sala.fechando || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Vota\u00e7\u00e3o n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (!sala.membros.has(interaction.user.id)) return interaction.reply({ content: '\u274C Voc\u00ea n\u00e3o est\u00e1 nessa sala.', flags: MessageFlags.Ephemeral });
 
       const trocou = sala.votacao.sim.has(interaction.user.id);
       sala.votacao.nao.add(interaction.user.id);
@@ -1045,7 +1056,7 @@ client.on('interactionCreate', async (interaction) => {
       const feedback = trocou
         ? '\u274C Voto alterado para **N\u00e3o**. Pode mudar a qualquer momento.'
         : '\u274C Voc\u00ea votou **N\u00e3o**. Pode mudar para **Sim** a qualquer momento.';
-      await interaction.reply({ content: feedback, ephemeral: true });
+      await interaction.reply({ content: feedback, flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -1055,8 +1066,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('votar_cancelar_')) {
       const salaId = interaction.customId.replace('votar_cancelar_', '');
       const sala = salas.get(salaId);
-      if (!sala || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Nenhuma vota\u00e7\u00e3o ativa.', ephemeral: true });
-      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder pode cancelar.', ephemeral: true });
+      if (!sala || !sala.votacao.ativa) return interaction.reply({ content: '\u274C Nenhuma vota\u00e7\u00e3o ativa.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder pode cancelar.', flags: MessageFlags.Ephemeral });
 
       const oldMsgId = sala.votacao.messageId;
       cancelarVotacaoTimeout(salaId);
@@ -1069,7 +1080,7 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       salvarEstado();
-      await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o cancelada.', ephemeral: true });
+      await interaction.reply({ content: '\u2705 Vota\u00e7\u00e3o cancelada.', flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -1079,8 +1090,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('toggle_andamento_')) {
       const salaId = interaction.customId.replace('toggle_andamento_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
 
       sala.emAndamento = !sala.emAndamento;
       const status = sala.emAndamento ? '\uD83D\uDD34 Partida iniciada!' : '\uD83D\uDFE2 Partida pausada!';
@@ -1092,7 +1103,7 @@ client.on('interactionCreate', async (interaction) => {
       if (textCh) await textCh.send(`${status} Por <@${interaction.user.id}>`).catch(() => {});
 
       salvarEstado();
-      await interaction.reply({ content: `\u2705 ${status}`, ephemeral: true });
+      await interaction.reply({ content: `\u2705 ${status}`, flags: MessageFlags.Ephemeral });
       return;
     }
 
@@ -1102,8 +1113,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('alterar_codigo_')) {
       const salaId = interaction.customId.replace('alterar_codigo_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
 
       const modal = new ModalBuilder()
         .setCustomId(`modal_alterar_codigo_${salaId}`)
@@ -1122,11 +1133,11 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('transferir_lider_')) {
       const salaId = interaction.customId.replace('transferir_lider_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
 
       const membros = [...sala.membros].filter(id => id !== sala.criadorId);
-      if (membros.length === 0) return interaction.reply({ content: '\u274C N\u00e3o h\u00e1 outros membros na sala.', ephemeral: true });
+      if (membros.length === 0) return interaction.reply({ content: '\u274C N\u00e3o h\u00e1 outros membros na sala.', flags: MessageFlags.Ephemeral });
 
       const options = membros.slice(0, 25).map(id => {
         const member = guild.members.cache.get(id);
@@ -1140,7 +1151,7 @@ client.on('interactionCreate', async (interaction) => {
           .addOptions(options)
       );
 
-      return interaction.reply({ content: '\uD83D\uDC51 Selecione o novo l\u00edder:', components: [row], ephemeral: true });
+      return interaction.reply({ content: '\uD83D\uDC51 Selecione o novo l\u00edder:', components: [row], flags: MessageFlags.Ephemeral });
     }
 
     // ══════════════════════════════════════════
@@ -1175,8 +1186,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('encerrar_partida_')) {
       const salaId = interaction.customId.replace('encerrar_partida_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
       return interaction.reply(buildConfirmacao('encerrar', salaId, sala.membros.size));
     }
 
@@ -1186,8 +1197,8 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isButton() && interaction.customId.startsWith('forcar_fechar_')) {
       const salaId = interaction.customId.replace('forcar_fechar_', '');
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      if (sala.criadorId !== interaction.user.id) return interaction.reply({ content: '\u274C Apenas o l\u00edder.', flags: MessageFlags.Ephemeral });
       return interaction.reply(buildConfirmacao('fechar', salaId, sala.membros.size));
     }
 
@@ -1226,19 +1237,19 @@ client.on('interactionCreate', async (interaction) => {
     //  ADMIN: REFRESH
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'admin_refresh') {
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', ephemeral: true });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
       await atualizarPainelAdmin(guild);
-      return interaction.reply({ content: '\u2705 Atualizado!', ephemeral: true });
+      return interaction.reply({ content: '\u2705 Atualizado!', flags: MessageFlags.Ephemeral });
     }
 
     // ══════════════════════════════════════════
     //  ADMIN: FECHAR TODAS
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'admin_delete_all') {
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', ephemeral: true });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
       const ids = Array.from(salas.keys()).filter(id => !salas.get(id).fechando);
-      if (ids.length === 0) return interaction.reply({ content: '\u274C Nenhuma sala ativa.', ephemeral: true });
-      await interaction.reply({ content: `\uD83D\uDDD1\uFE0F Fechando ${ids.length} sala(s)...`, ephemeral: true });
+      if (ids.length === 0) return interaction.reply({ content: '\u274C Nenhuma sala ativa.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: `\uD83D\uDDD1\uFE0F Fechando ${ids.length} sala(s)...`, flags: MessageFlags.Ephemeral });
       for (const id of ids) await agendarFechamento(id, guild, `admin (<@${interaction.user.id}>)`);
       return;
     }
@@ -1247,8 +1258,8 @@ client.on('interactionCreate', async (interaction) => {
     //  ADMIN: LIMPAR ORFAOS
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'admin_cleanup_orfaos') {
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', ephemeral: true });
-      await interaction.deferReply({ ephemeral: true });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const n = await limparOrfaos(guild);
       return interaction.editReply({ content: `\uD83E\uDDF9 **${n}** \u00f3rf\u00e3o(s) removido(s).` });
     }
@@ -1257,11 +1268,11 @@ client.on('interactionCreate', async (interaction) => {
     //  ADMIN: HISTORICO
     // ══════════════════════════════════════════
     if (interaction.isButton() && interaction.customId === 'admin_historico') {
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', ephemeral: true });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
 
       const historico = carregarHistorico(10);
       if (historico.length === 0) {
-        return interaction.reply({ content: '\uD83D\uDCCA Nenhum registro no hist\u00f3rico.', ephemeral: true });
+        return interaction.reply({ content: '\uD83D\uDCCA Nenhum registro no hist\u00f3rico.', flags: MessageFlags.Ephemeral });
       }
 
       const lista = historico.reverse().map((h, i) => {
@@ -1275,18 +1286,18 @@ client.on('interactionCreate', async (interaction) => {
         .setDescription(lista.substring(0, 4000))
         .setFooter({ text: `Total registrado: ${carregarHistorico(200).length} partida(s)` });
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     // ══════════════════════════════════════════
     //  ADMIN: SELECT SALA
     // ══════════════════════════════════════════
     if (interaction.isStringSelectMenu() && interaction.customId === 'admin_select_sala') {
-      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', ephemeral: true });
+      if (!ehAdmin(interaction.member)) return interaction.reply({ content: '\u274C Sem permiss\u00e3o.', flags: MessageFlags.Ephemeral });
       const salaId = interaction.values[0];
       const sala = salas.get(salaId);
-      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', ephemeral: true });
-      await interaction.reply({ content: `\uD83D\uDDD1\uFE0F Fechando **${sala.nome}**...`, ephemeral: true });
+      if (!sala || sala.fechando) return interaction.reply({ content: '\u274C Sala n\u00e3o encontrada.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({ content: `\uD83D\uDDD1\uFE0F Fechando **${sala.nome}**...`, flags: MessageFlags.Ephemeral });
       await agendarFechamento(salaId, guild, `admin (<@${interaction.user.id}>)`);
       return;
     }
@@ -1295,9 +1306,9 @@ client.on('interactionCreate', async (interaction) => {
     logger.error(`Erro interacao ${interaction?.customId || 'desconhecida'}: ${error.stack || error.message}`);
     try {
       if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: '\u274C Erro interno. Tente novamente.', ephemeral: true });
+        await interaction.reply({ content: '\u274C Erro interno. Tente novamente.', flags: MessageFlags.Ephemeral });
       } else {
-        await interaction.followUp({ content: '\u274C Erro interno. Tente novamente.', ephemeral: true });
+        await interaction.followUp({ content: '\u274C Erro interno. Tente novamente.', flags: MessageFlags.Ephemeral });
       }
     } catch {}
   }
